@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	HEARTBEAT_DURATION_SECONDS = 30
-	TXRX_LOOP_TICKER_DURATION_SECONDS = 9
+	HEARTBEAT_DURATION_SECONDS = 8
+	TXRX_LOOP_TICKER_DURATION_SECONDS = 6
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -62,7 +62,7 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 0, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 
 	// Launch go routines
@@ -84,8 +84,10 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- "GatewayMainLoopHeartbeat - I am old mbx prototype in black box"
+		txQ <- "GatewayMainLoopHeartbeat-V2"
 
+
+		runLight(led, 2)
 		runtime.Gosched()
 	}
 
@@ -105,7 +107,7 @@ func runLight(led machine.Pin, count int) {
 		time.Sleep(time.Millisecond * 100)
 		led.Low()
 		time.Sleep(time.Millisecond * 100)
-		print("run-")
+		// print("run-")
 	}
 
 }

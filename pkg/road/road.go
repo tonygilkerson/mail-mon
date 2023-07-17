@@ -172,9 +172,9 @@ func (radio *Radio) LoraRxTx() {
 		//
 		// RX - Receive
 		//
-		tStart := time.Now()
-		log.Println("road.LoraRxTx: RX Start - Receiving Lora for 5 seconds")
-		for time.Since(tStart) < 5*time.Second {
+		// tStart := time.Now()
+		log.Println("road.LoraRxTx: RX Start - Receiving")
+		// for time.Since(tStart) < 5*time.Second {
 
 			buf, err := radio.SxDevice.Rx(radio.RxTimeoutMs)
 
@@ -193,7 +193,7 @@ func (radio *Radio) LoraRxTx() {
 				}
 
 			}
-		}
+		// }
 
 		//
 		// Batch - batch all message in txQ

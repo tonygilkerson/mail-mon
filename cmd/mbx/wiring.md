@@ -1,7 +1,5 @@
 # Wiring
 
-DEVTODO - This needs verified
-
 | Pico     | Lora Breakout Board | Charger Breakout Board | Solar Cell | Battery | Photo Cell w/Transistor on Mailbox Door | Photo Cell w/Transistor on Mule Tx LED |
 | -------- | ------------------- | ---------------------- | ---------- | ------- | --------------------------------------- | -------------------------------------- |
 | 3v3(out) | VIN                 | VBUS                   | Red        |         | T2                                      | T2                                     |
