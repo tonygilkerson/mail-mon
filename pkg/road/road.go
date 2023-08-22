@@ -4,6 +4,7 @@ import (
 	"log"
 	"machine"
 	"runtime"
+	"strings"
 	"time"
 
 	"tinygo.org/x/drivers/lora"
@@ -17,10 +18,8 @@ type CommunicationMode int
 // collect and send data only, then the process can be optimized if you set its mode to TxOnly
 // For TxOnly if there is no data to send then the Lora RxTx cycle can be skipped.
 //
-// RxOnly (not needed)
-// If you are a device that need to only receive data, then you have no choice but to do a TxRx every cycle
-//
 // TxRx
+// If you are a device that need to only receive data, then you have no choice but to do a TxRx every cycle
 // Do a Tx and Rx each cycle
 const (
 	TxRx CommunicationMode = iota
@@ -151,6 +150,14 @@ func SetupLora(
 	return radio
 }
 
+// SplitMessageBatch will split a batch of messages and return a slice of messages
+// All messages sent over the radio are batched for efficiency
+// Messages on the queue are stored as strings separated by a pipe character "|"
+// For example: message batch -> "msg1|msg2|msg3|..."
+func SplitMessageBatch(msgBatch string) []string {
+	return strings.Split(string(msgBatch), "|")
+}
+
 func (radio *Radio) LoraRxTx() {
 	txQ := radio.TxQ
 	rxQ := radio.RxQ
@@ -176,23 +183,23 @@ func (radio *Radio) LoraRxTx() {
 		log.Println("road.LoraRxTx: RX Start - Receiving")
 		// for time.Since(tStart) < 5*time.Second {
 
-			buf, err := radio.SxDevice.Rx(radio.RxTimeoutMs)
+		buf, err := radio.SxDevice.Rx(radio.RxTimeoutMs)
 
-			if err != nil {
-				log.Println("road.LoraRxTx: RX Error: ", err)
+		if err != nil {
+			log.Println("road.LoraRxTx: RX Error: ", err)
 
-			} else if buf != nil {
+		} else if buf != nil {
 
-				log.Printf("road.LoraRxTx: RX Packet Received: [%v]", string(buf))
+			log.Printf("road.LoraRxTx: RX Packet Received: [%v]", string(buf))
 
-				// Use non-blocking send so if the channel buffer is full,
-				// the value will get dropped instead of crashing the system
-				select {
-				case *rxQ <- string(buf):
-				default:
-				}
-
+			// Use non-blocking send so if the channel buffer is full,
+			// the value will get dropped instead of crashing the system
+			select {
+			case *rxQ <- string(buf):
+			default:
 			}
+
+		}
 		// }
 
 		//
@@ -232,7 +239,6 @@ func (radio *Radio) LoraRxTx() {
 		} else {
 			log.Println("road.LoraRxTx: TX nothing to send, skipping TX")
 		}
-
 
 		// Disable the radio to save power...
 		radio.EN.Low()

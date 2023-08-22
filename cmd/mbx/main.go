@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/tonygilkerson/marty/pkg/dsp"
 	"github.com/tonygilkerson/marty/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
 )
@@ -44,7 +45,7 @@ func main() {
 	// run light
 	//
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	runLight(led, 10)
+	dsp.RunLight(led, 10)
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 

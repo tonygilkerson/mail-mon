@@ -4,9 +4,9 @@ import (
 	"log"
 	"machine"
 	"runtime"
-	"strings"
 	"time"
 
+	"github.com/tonygilkerson/marty/pkg/dsp"
 	"github.com/tonygilkerson/marty/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
 )
@@ -41,7 +41,7 @@ func main() {
 	// run light
 	//
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	runLight(led, 10)
+	dsp.RunLight(led, 10)
 
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -86,8 +86,7 @@ func main() {
 		//
 		txQ <- "GatewayMainLoopHeartbeat-V2"
 
-
-		runLight(led, 2)
+		dsp.RunLight(led, 2)
 		runtime.Gosched()
 	}
 
@@ -99,18 +98,6 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func runLight(led machine.Pin, count int) {
-
-	// blink run light for a bit seconds so I can tell it is starting
-	for i := 0; i < count; i++ {
-		led.High()
-		time.Sleep(time.Millisecond * 100)
-		led.Low()
-		time.Sleep(time.Millisecond * 100)
-		// print("run-")
-	}
-
-}
 
 func writeToSerial(rxQ *chan string, uart *machine.UART) {
 	var msgBatch string
@@ -119,7 +106,7 @@ func writeToSerial(rxQ *chan string, uart *machine.UART) {
 
 		log.Printf("Message batch: [%v]", msgBatch)
 
-		messages := strings.Split(string(msgBatch), "|")
+		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
 			log.Printf("Write to serial: [%v]", msg)
 			uart.Write([]byte(msg))
