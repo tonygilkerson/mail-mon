@@ -49,9 +49,10 @@ func main() {
 	//
 	var loraRadio *sx127x.Device
 	txQ := make(chan string, 250) // I would hope the channel size would never be larger than ~4 so 250 is large
-	rxQ := make(chan string)      // this app currently does not do anything with messages received
+	rxQ := make(chan string, 250)      
 
-	radio := road.SetupLora(*machine.SPI0, enLora, rstLora, csLora, dio0Lora, dio1Lora, sckLora, sdoLora, sdiLora, loraRadio, &txQ, &rxQ, 0, 0, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	log.Println("Setup LORA")
+	radio := road.SetupLora(*machine.SPI0, enLora, rstLora, csLora, dio0Lora, dio1Lora, sckLora, sdoLora, sdiLora, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 	//
 	// Launch go routines
