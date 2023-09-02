@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"machine"
 	"runtime"
 	"time"
 
 	"github.com/tonygilkerson/mbx-iot/pkg/dsp"
+	"github.com/tonygilkerson/mbx-iot/pkg/msg"
 	"github.com/tonygilkerson/mbx-iot/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
 )
@@ -22,6 +24,10 @@ const (
 
 func main() {
 
+	var foo msg.MsgKey
+	foo = msg.MbxTemperature
+	fmt.Println("test %v",foo)
+	
 	//
 	// Named PINs
 	//
