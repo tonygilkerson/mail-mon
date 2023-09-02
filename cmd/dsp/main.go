@@ -6,8 +6,8 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/tonygilkerson/marty/pkg/dsp"
-	"github.com/tonygilkerson/marty/pkg/road"
+	"github.com/tonygilkerson/mbx-iot/pkg/dsp"
+	"github.com/tonygilkerson/mbx-iot/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
 )
 

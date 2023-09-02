@@ -1,4 +1,4 @@
-module github.com/tonygilkerson/marty
+module github.com/tonygilkerson/mbx-iot
 
 go 1.20
 

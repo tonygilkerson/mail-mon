@@ -13,6 +13,19 @@ import (
 
 type CommunicationMode int
 
+type MsgKey string
+
+const (
+	MbxTemperature            MsgKey = "MailboxTemperature"
+	MbxMuleAlarm                     = "MuleAlarm"
+	MbxDoorOpened                    = "MailboxDoorOpened"
+	MbxChargerChargeStatusOn         = "ChargerChargeStatusOn"
+	MbxChargerChargeStatusOff        = "ChargerChargeStatusOff"
+	MbxChargerPowerSourceGood        = "ChargerPowerSourceGood"
+	MbxChargerPowerSourceBad         = "ChargerPowerSourceBad"
+	MbxRoadMainLoopHeartbeat         = "RoadMainLoopHeartbeat"
+)
+
 // TxOnly
 // The Lora protocol wants you to do both Rx and Tx but if you are a device who's main purpose is to
 // collect and send data only, then the process can be optimized if you set its mode to TxOnly
