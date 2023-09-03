@@ -1,4 +1,4 @@
-package msg
+package Msg
 
 type MsgKey string
 
