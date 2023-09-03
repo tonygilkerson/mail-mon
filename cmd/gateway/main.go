@@ -24,10 +24,11 @@ const (
 
 func main() {
 
-	var foo msg.MsgKey
-	foo = msg.MbxTemperature
+	//DEVTODO - delete me
+	var foo Msg.MsgKey
+	foo = Msg.MbxTemperature
 	fmt.Println("test %v",foo)
-	
+
 	//
 	// Named PINs
 	//
