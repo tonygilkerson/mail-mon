@@ -1,4 +1,4 @@
-package msg
+package iot
 
 type MsgKey string
 

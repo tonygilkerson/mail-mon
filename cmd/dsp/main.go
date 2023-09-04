@@ -8,13 +8,13 @@ import (
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
-	"github.com/tonygilkerson/mbx-iot/pkg/msg"
+	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 	"tinygo.org/x/drivers/sx127x"
 )
 
 const (
 	// HEARTBEAT_DURATION_SECONDS        = 300
-	HEARTBEAT_DURATION_SECONDS        = 15
+	HEARTBEAT_DURATION_SECONDS        = 11
 	TXRX_LOOP_TICKER_DURATION_SECONDS = 9
 )
 
@@ -27,17 +27,24 @@ func main() {
 	//
 	// Named PINs
 	//
-	var enLora machine.Pin = machine.GP15
-	var sdiLora machine.Pin = machine.GP16 // machine.SPI0_SDI_PIN
-	var csLora machine.Pin = machine.GP17
-	var sckLora machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
-	var sdoLora machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
-	var rstLora machine.Pin = machine.GP20
-	var dio0Lora machine.Pin = machine.GP21 // (GP21--G0) Must be connected from pico to breakout for radio events IRQ to work
-	var dio1Lora machine.Pin = machine.GP22 // (GP22--G1) I don't now what this does but it seems to need to be connected
+	// var dspCs machine.Pin = machine.GP10
+	// var dspDc machine.Pin = machine.GP11
+	// var dspRst machine.Pin = machine.GP12
+	// var dspBusy machine.Pin = machine.GP13
+	// // var dspClk machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
+	// // var dspDin machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
+
+	var loraEn machine.Pin = machine.GP15
+	var loraSdi machine.Pin = machine.GP16 // machine.SPI0_SDI_PIN
+	var loraCs machine.Pin = machine.GP17
+	var scm machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
+	var sdo machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
+	var loraRst machine.Pin = machine.GP20
+	var loraDio0 machine.Pin = machine.GP21 // (GP21--G0) Must be connected from pico to breakout for radio events IRQ to work
+	var loraDio1 machine.Pin = machine.GP22 // (GP22--G1) I don't now what this does but it seems to need to be connected
 
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
-	
+
 	//
 	// run light
 	//
@@ -50,16 +57,16 @@ func main() {
 	//
 	var loraRadio *sx127x.Device
 	txQ := make(chan string, 250) // I would hope the channel size would never be larger than ~4 so 250 is large
-	rxQ := make(chan string, 250)      
+	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, enLora, rstLora, csLora, dio0Lora, dio1Lora, sckLora, sdoLora, sdiLora, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, scm, sdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 	//
-	// Launch go routines
+	// go routines
 	//
-	go radio.LoraRxTx()
-	go rxQConsumer(&rxQ)
+	// DEVTODO - it works as a go routine but I dont want it to run as a go routine
+	go radio.LoraRxTxRunner()
 
 	//
 	// Main loop
@@ -75,9 +82,22 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- msg.DspMainLoopHeartbeat
+		txQ <- iot.DspMainLoopHeartbeat
 		dsp.RunLight(led, 2)
 
+		//
+		// Do a Lora Rx Tx cycle
+		//
+		// radio.LoraRxTx()
+
+		//
+		// Consume any messages received
+		//
+		rxQConsumer(&rxQ)
+
+		//
+		// Let someone else have a turn
+		//
 		runtime.Gosched()
 	}
 
@@ -89,11 +109,12 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-
-func rxQConsumer(rxQ *chan string){
+func rxQConsumer(rxQ *chan string) {
 	var msgBatch string
 
-	for msgBatch = range *rxQ {
+	for len(*rxQ) > 0 {
+
+		msgBatch = <- *rxQ
 		log.Printf("Message batch: [%v]", msgBatch)
 
 		messages := road.SplitMessageBatch(msgBatch)
@@ -101,6 +122,5 @@ func rxQConsumer(rxQ *chan string){
 			log.Printf("dsp.rxQConsumer: Message: [%v]", msg)
 		}
 
-		runtime.Gosched()
 	}
 }

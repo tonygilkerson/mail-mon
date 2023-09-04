@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"machine"
 	"runtime"
@@ -9,7 +8,7 @@ import (
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
-	"github.com/tonygilkerson/mbx-iot/pkg/msg"
+	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 	"tinygo.org/x/drivers/sx127x"
 )
 
@@ -23,11 +22,6 @@ const (
 /////////////////////////////////////////////////////////////////////////////
 
 func main() {
-
-	//DEVTODO - delete me
-	var foo msg.MsgKey
-	foo = msg.MbxTemperature
-	fmt.Println("test %v",foo)
 
 	//
 	// Named PINs
@@ -76,7 +70,7 @@ func main() {
 	log.Println("Launch go routines")
 	go writeToSerial(&rxQ, uart)
 	go readFromSerial(&txQ, uart)
-	go radio.LoraRxTx()
+	go radio.LoraRxTxRunner()
 
 	// Main loop
 	log.Println("Start main loop")
@@ -91,7 +85,7 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- msg.GatewayMainLoopHeartbeat
+		txQ <- iot.GatewayMainLoopHeartbeat
 
 		dsp.RunLight(led, 2)
 		runtime.Gosched()

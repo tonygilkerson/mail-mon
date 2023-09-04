@@ -10,7 +10,7 @@ import (
 	"tinygo.org/x/drivers/sx127x"
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
-	"github.com/tonygilkerson/mbx-iot/pkg/msg"
+	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 )
 
 const (
@@ -113,7 +113,7 @@ func main() {
 
 	go mailMonitor(&mailInterruptEvents, &txQ)
 	go muleMonitor(&muleInterruptEvents, &txQ)
-	go radio.LoraRxTx()
+	go radio.LoraRxTxRunner()
 
 	// Main loop
 	ticker := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
@@ -129,7 +129,7 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- msg.MbxRoadMainLoopHeartbeat
+		txQ <- iot.MbxRoadMainLoopHeartbeat
 
 		//
 		// send charger status
@@ -169,7 +169,7 @@ func mailMonitor(ch *chan string, txQ *chan string) {
 
 	for range *ch {
 		log.Println("Mailbox light up")
-		*txQ <- msg.MbxDoorOpened
+		*txQ <- iot.MbxDoorOpened
 
 		runtime.Gosched()
 		// Wait a long time to give mail man time to shut the door
@@ -184,7 +184,7 @@ func muleMonitor(ch *chan string, txQ *chan string) {
 
 	for range *ch {
 		log.Println("Mule light up")
-		*txQ <- msg.MbxMuleAlarm
+		*txQ <- iot.MbxMuleAlarm
 
 		runtime.Gosched()
 		time.Sleep(time.Second * 4)
@@ -198,7 +198,7 @@ func sendTemperature(txQ *chan string) {
 	// F = ( (ReadTemperature /1000) * 9/5) + 32
 	fahrenheit := ((machine.ReadTemperature() / 1000) * 9 / 5) + 32
 	fmt.Printf("fahrenheit: %v\n", fahrenheit)
-	*txQ <- fmt.Sprintf("%v:%v", msg.MbxTemperature,fahrenheit)
+	*txQ <- fmt.Sprintf("%v:%v",iot.MbxTemperature,fahrenheit)
 
 }
 
@@ -206,18 +206,18 @@ func sendChargerStatus(chgPin machine.Pin, pgoodPin machine.Pin, txQ *chan strin
 
 	if pgoodPin.Get() {
 		log.Println("Power source bad")
-		*txQ <- msg.MbxChargerPowerSourceBad
+		*txQ <- iot.MbxChargerPowerSourceBad
 	} else {
 		log.Println("Power source good")
-		*txQ <- msg.MbxChargerPowerSourceGood
+		*txQ <- iot.MbxChargerPowerSourceGood
 	}
 
 	if chgPin.Get() {
 		log.Println("Charger off")
-		*txQ <- msg.MbxChargerChargeStatusOff
+		*txQ <- iot.MbxChargerChargeStatusOff
 	} else {
 		log.Println("Charger on")
-		*txQ <- msg.MbxChargerChargeStatusOn
+		*txQ <- iot.MbxChargerChargeStatusOn
 	}
 
 }

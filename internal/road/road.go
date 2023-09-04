@@ -159,92 +159,94 @@ func SplitMessageBatch(msgBatch string) []string {
 	return strings.Split(string(msgBatch), "|")
 }
 
+func (radio *Radio) LoraRxTxRunner() {
+
+	ticker := time.NewTicker(time.Second * time.Duration(radio.TxRxLoopTickerSec))
+	for range ticker.C {
+		radio.LoraRxTx()
+		runtime.Gosched()
+	}
+
+}
+
 func (radio *Radio) LoraRxTx() {
 	txQ := radio.TxQ
 	rxQ := radio.RxQ
 
-	ticker := time.NewTicker(time.Second * time.Duration(radio.TxRxLoopTickerSec))
-	for range ticker.C {
-
-		//
-		// If there are no messages in the channel then get out quick
-		//
-		if radio.CommunicationMode == TxOnly && len(*txQ) == 0 {
-			log.Println("road.LoraRxTx: txQ is empty, mode=TxOnly so getting out early...")
-			continue
-		}
-
-		// Enable the radio
-		radio.EN.High()
-
-		//
-		// RX - Receive
-		//
-		// tStart := time.Now()
-		log.Println("road.LoraRxTx: RX Start - Receiving")
-		// for time.Since(tStart) < 5*time.Second {
-
-		buf, err := radio.SxDevice.Rx(radio.RxTimeoutMs)
-
-		if err != nil {
-			log.Println("road.LoraRxTx: RX Error: ", err)
-
-		} else if buf != nil {
-
-			log.Printf("road.LoraRxTx: RX Packet Received: [%v]", string(buf))
-
-			// Use non-blocking send so if the channel buffer is full,
-			// the value will get dropped instead of crashing the system
-			select {
-			case *rxQ <- string(buf):
-			default:
-			}
-
-		}
-		// }
-
-		//
-		// Batch - batch all message in txQ
-		//
-		var batchMsg string
-
-		// Concatenate all messages separated by \n
-		eom := false //end of messages
-		for {
-			select {
-			case msg := <-*txQ:
-				if len(batchMsg) > 0 {
-					batchMsg = batchMsg + "|" + msg
-				} else {
-					batchMsg = msg
-				}
-			default:
-				eom = true
-			}
-
-			// break out if end of messages
-			if eom {
-				break
-			}
-		}
-
-		//
-		// TX - Send batch
-		//
-		if len(batchMsg) > 0 {
-			log.Printf("road.LoraRxTx: TX [%v]", batchMsg)
-			err := radio.SxDevice.Tx([]byte(batchMsg), radio.TxTimeoutMs)
-			if err != nil {
-				log.Printf("road.LoraRxTx: TX Error [%v]", err)
-			}
-		} else {
-			log.Println("road.LoraRxTx: TX nothing to send, skipping TX")
-		}
-
-		// Disable the radio to save power...
-		radio.EN.Low()
-
-		runtime.Gosched()
+	//
+	// If there are no messages in the channel then get out quick
+	//
+	if radio.CommunicationMode == TxOnly && len(*txQ) == 0 {
+		log.Println("road.LoraRxTx: txQ is empty, mode=TxOnly so getting out early...")
+		return
 	}
 
+	// Enable the radio
+	radio.EN.High()
+
+	//
+	// RX - Receive
+	//
+	log.Println("road.LoraRxTx: RX Start - Receiving")
+	buf, err := radio.SxDevice.Rx(radio.RxTimeoutMs)
+
+	if err != nil {
+		log.Println("road.LoraRxTx: RX Error: ", err)
+
+	} else if buf != nil {
+
+		log.Printf("road.LoraRxTx: RX Packet Received: [%v]", string(buf))
+
+		// Use non-blocking send so if the channel buffer is full,
+		// the value will get dropped instead of crashing the system
+		select {
+		case *rxQ <- string(buf):
+		default:
+		}
+
+	} else {
+		log.Println("road.LoraRxTx: RX nothing to receive")
+	}
+
+	//
+	// Batch - batch all message in txQ
+	//
+	var batchMsg string
+
+	// Concatenate all messages separated by \n
+	eom := false //end of messages
+	for {
+		select {
+		case msg := <-*txQ:
+			if len(batchMsg) > 0 {
+				batchMsg = batchMsg + "|" + msg
+			} else {
+				batchMsg = msg
+			}
+		default:
+			eom = true
+		}
+
+		// break out if end of messages
+		if eom {
+			break
+		}
+	}
+
+	//
+	// TX - Send batch
+	//
+	if len(batchMsg) > 0 {
+		log.Printf("road.LoraRxTx: TX [%v]", batchMsg)
+		err := radio.SxDevice.Tx([]byte(batchMsg), radio.TxTimeoutMs)
+		if err != nil {
+			log.Printf("road.LoraRxTx: TX Error [%v]", err)
+		}
+	} else {
+		log.Println("road.LoraRxTx: TX nothing to send, skipping TX")
+	}
+
+	// Disable the radio to save power...
+	radio.EN.Low()
+	
 }
