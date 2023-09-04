@@ -6,8 +6,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/tonygilkerson/mbx-iot/pkg/dsp"
-	"github.com/tonygilkerson/mbx-iot/pkg/road"
+	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/road"
+	"github.com/tonygilkerson/mbx-iot/pkg/msg"
 	"tinygo.org/x/drivers/sx127x"
 )
 
@@ -74,7 +75,7 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- "DisplayMainLoopHeartbeat"
+		txQ <- msg.DspMainLoopHeartbeat
 		dsp.RunLight(led, 2)
 
 		runtime.Gosched()

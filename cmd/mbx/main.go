@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/tonygilkerson/mbx-iot/pkg/dsp"
-	"github.com/tonygilkerson/mbx-iot/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
+	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/road"
+	"github.com/tonygilkerson/mbx-iot/pkg/msg"
 )
 
 const (
@@ -128,7 +129,7 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- "RoadMainLoopHeartbeat"
+		txQ <- msg.MbxRoadMainLoopHeartbeat
 
 		//
 		// send charger status
@@ -168,7 +169,7 @@ func mailMonitor(ch *chan string, txQ *chan string) {
 
 	for range *ch {
 		log.Println("Mailbox light up")
-		*txQ <- "MailboxDoorOpened"
+		*txQ <- msg.MbxDoorOpened
 
 		runtime.Gosched()
 		// Wait a long time to give mail man time to shut the door
@@ -183,7 +184,7 @@ func muleMonitor(ch *chan string, txQ *chan string) {
 
 	for range *ch {
 		log.Println("Mule light up")
-		*txQ <- "MuleAlarm"
+		*txQ <- msg.MbxMuleAlarm
 
 		runtime.Gosched()
 		time.Sleep(time.Second * 4)
@@ -197,7 +198,7 @@ func sendTemperature(txQ *chan string) {
 	// F = ( (ReadTemperature /1000) * 9/5) + 32
 	fahrenheit := ((machine.ReadTemperature() / 1000) * 9 / 5) + 32
 	fmt.Printf("fahrenheit: %v\n", fahrenheit)
-	*txQ <- fmt.Sprintf("MailboxTemperature:%v", fahrenheit)
+	*txQ <- fmt.Sprintf("%v:%v", msg.MbxTemperature,fahrenheit)
 
 }
 
@@ -205,18 +206,18 @@ func sendChargerStatus(chgPin machine.Pin, pgoodPin machine.Pin, txQ *chan strin
 
 	if pgoodPin.Get() {
 		log.Println("Power source bad")
-		*txQ <- "ChargerPowerSourceBad"
+		*txQ <- msg.MbxChargerPowerSourceBad
 	} else {
 		log.Println("Power source good")
-		*txQ <- "ChargerPowerSourceGood"
+		*txQ <- msg.MbxChargerPowerSourceGood
 	}
 
 	if chgPin.Get() {
 		log.Println("Charger off")
-		*txQ <- "ChargerChargeStatusOff"
+		*txQ <- msg.MbxChargerChargeStatusOff
 	} else {
 		log.Println("Charger on")
-		*txQ <- "ChargerChargeStatusOn"
+		*txQ <- msg.MbxChargerChargeStatusOn
 	}
 
 }

@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/tonygilkerson/mbx-iot/pkg/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/road"
 	"github.com/tonygilkerson/mbx-iot/pkg/msg"
-	"github.com/tonygilkerson/mbx-iot/pkg/road"
 	"tinygo.org/x/drivers/sx127x"
 )
 
@@ -25,8 +25,8 @@ const (
 func main() {
 
 	//DEVTODO - delete me
-	var foo Msg.MsgKey
-	foo = Msg.MbxTemperature
+	var foo msg.MsgKey
+	foo = msg.MbxTemperature
 	fmt.Println("test %v",foo)
 
 	//
@@ -91,7 +91,7 @@ func main() {
 		//
 		// Send Heartbeat to Tx queue
 		//
-		txQ <- "GatewayMainLoopHeartbeat-V2"
+		txQ <- msg.GatewayMainLoopHeartbeat
 
 		dsp.RunLight(led, 2)
 		runtime.Gosched()
