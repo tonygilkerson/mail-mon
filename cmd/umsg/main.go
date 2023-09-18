@@ -1,9 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"machine"
+	"os"
 	"runtime"
 	"time"
 
@@ -63,79 +63,42 @@ func main() {
 	mb.Configure()
 
 	/////////////////////////////////////////////////////////////////////////////
-	// Foo test
+	// Tests
 	/////////////////////////////////////////////////////////////////////////////
-	
-	log.Printf("[main] - Buildup foo message 1\n")
+
+	fooTest(&mb, fooCh)
+	barTest(&mb, barCh)
+
+	// Done
+	log.Printf("[main] - **** DONE ****")
+	os.Exit(0)
+}
+
+
+func fooTest(mb *umsg.MsgBroker, fooCh chan umsg.FooMsg){
+
 	var fm umsg.FooMsg
-	fm.Kind = "Foo"
-	fm.SenderID = "" // will default to broker senderID
-	fm.Name = "This is a foo message"
-
-	
-	log.Printf("[main] - PublishFoo(fm)\n")
-	mb.PublishFoo(fm)
-	
-	log.Printf("[main] - Gosched()\n")
-	runtime.Gosched()
-	
-	log.Printf("[main] - pause after publish to give the listenRoutine() time\n")
-	time.Sleep(time.Millisecond * 4000)
-
-	wantChLen := 0
-	gotChLen := len(fooCh)
-
-	log.Printf("[main] - ******************************************************************\n")
-	if wantChLen == gotChLen {
-		log.Printf("[main] - SUCCESS\n")
-	} else {
-		log.Printf("[main] - FAIL, want: [%v], got: [%v]\n", wantChLen, gotChLen)
-	}
-	log.Printf("[main] - ******************************************************************\n")
-
-	/////////////////////////////////////////////////////////////////////////////
-	// Foo test 2
-	/////////////////////////////////////////////////////////////////////////////
-	
-	log.Printf("[main] - pause between tests **************************************************************** \n")
-	time.Sleep(time.Millisecond * 5000)
-
-	log.Printf("[main] - Buildup foo message from loopback\n")
-	// var fm umsg.FooMsg
 	fm.Kind = "Foo"
 	fm.SenderID = umsg.LOOKBACK_SENDERID
 	fm.Name = "This is a foo message from loopback"
 
-	
-	
-	log.Printf("[main] - PublishFoo(fm)\n")
+	log.Printf("[fooTest] - PublishFoo(fm)\n")
 	mb.PublishFoo(fm)
-	
-	log.Printf("[main] - Gosched()\n")
-	runtime.Gosched()
 
-	log.Printf("[main] - pause after publish to give the listenRoutine() time\n")
-	time.Sleep(time.Millisecond * 4000)
-
-	// for i := range fooCh {
-	// 	log.Printf("[main] - DEBUG GOT , msg: ********************************** [%v] *********************************************\n",i)
-	// }
-
-	var found bool = false 
+	var found bool = false
 	var msg umsg.FooMsg
 
-	tick := time.Tick(100 * time.Millisecond)
-	boom := time.After(1000 * time.Millisecond)
+	// Non-blocking ch read that will timeout... boom!
+	boom := time.After(3000 * time.Millisecond)
 	for {
 		select {
 		case msg = <-fooCh:
 			found = true
-			log.Printf("[main] - got message: %v\n", msg)
-		case <-tick:
 		case <-boom:
+			log.Printf("[fooTest] - Boom! timeout waiting for message\n")
 			break
 		default:
-			fmt.Println("    .")
+			runtime.Gosched()
 			time.Sleep(50 * time.Millisecond)
 		}
 
@@ -144,22 +107,62 @@ func main() {
 		}
 	}
 
-
-	log.Printf("[main] - ******************************************************************\n")
-	if  found {
-		log.Printf("[main] - SUCCESS, msg: [%v]\n",msg)
+	log.Printf("[fooTest] - ******************************************************************\n")
+	if found {
+		if msg.Name == fm.Name {
+			log.Printf("[fooTest] - SUCCESS, msg: [%v]\n", msg)
+		} else {
+			log.Printf("[fooTest] - FAIL, wrong msg: [%v]\n", msg)
+		}
 	} else {
-		log.Printf("[main] - FAIL, want: [%v], got: [%v]\n", wantChLen, gotChLen)
+		log.Printf("[fooTest] - FAIL, did not receive message.")
 	}
-	log.Printf("[main] - ******************************************************************\n")
+	log.Printf("[fooTest] - ******************************************************************\n")
 
-	/////////////////////////////////////////////////////////////////////////////
-	// Keep Alive...
-	/////////////////////////////////////////////////////////////////////////////
+}
 
+func barTest(mb *umsg.MsgBroker, barCh chan umsg.BarMsg){
+
+	var bm umsg.BarMsg
+	bm.Kind = "Bar"
+	bm.SenderID = umsg.LOOKBACK_SENDERID
+	bm.Name = "This is a bar message from loopback"
+
+	log.Printf("[barTest] - PublishBar(bm)\n")
+	mb.PublishBar(bm)
+
+	var found bool = false
+	var msg umsg.BarMsg
+
+	// Non-blocking ch read that will timeout... boom!
+	boom := time.After(3000 * time.Millisecond)
 	for {
-		fmt.Printf("m")
-		runtime.Gosched()
-		time.Sleep(time.Millisecond * 500)
+		select {
+		case msg = <-barCh:
+			found = true
+		case <-boom:
+			log.Printf("[fooTest] - Boom! timeout waiting for message\n")
+			break
+		default:
+			runtime.Gosched()
+			time.Sleep(50 * time.Millisecond)
+		}
+
+		if found {
+			break
+		}
 	}
+
+	log.Printf("[barTest] - ******************************************************************\n")
+	if found {
+		if msg.Name == bm.Name {
+			log.Printf("[barTest] - SUCCESS, msg: [%v]\n", msg)
+		} else {
+			log.Printf("[barTest] - FAIL, wrong msg: [%v]\n", msg)
+		}
+	} else {
+		log.Printf("[barTest] - FAIL, did not receive message.")
+	}
+	log.Printf("[barTest] - ******************************************************************\n")
+
 }

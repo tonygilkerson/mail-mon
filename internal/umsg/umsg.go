@@ -168,16 +168,9 @@ func (mb *MsgBroker) PublishBar(bar BarMsg) {
 func (mb *MsgBroker) writeMsg(msg string) {
 
 	if mb.uartOut != nil {
-
-		log.Printf("[writeMsg] - sending message: %v\n", msg)
 		mb.uartOut.Write([]byte(msg))
 		// Print a new line between messages for readability in the serial monitor
 		mb.uartOut.Write([]byte("\n"))
-
-	} else {
-
-		log.Printf("[writeMsg] - message not sent, no output uart\n")
-
 	}
 
 }
@@ -189,13 +182,11 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 	case string(MSG_FOO):
 		log.Printf("[dispatchMsgToChannel] - %v\n", MSG_FOO)
 		msg := makeFoo(msgParts)
-		log.Printf("[dispatchMsgToChannel] - msg: %v\n", msg)
+
 		if mb.fooCh != nil {
-			log.Printf("[dispatchMsgToChannel] - write to fooCh: %v\n", *msg)
 			mb.fooCh <- *msg
-		} else {
-			log.Printf("[dispatchMsgToChannel] - send to bit bucket, no fooCh: %v\n")
 		}
+
 	case string(MSG_BAR):
 		log.Printf("[dispatchMsgToChannel] - %v\n", MSG_BAR)
 		msg := makeBar(msgParts)
@@ -204,7 +195,6 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 		}
 
 	default:
-		log.Println("[dispatchMsgToChannel] - no match found")
 	}
 
 }
@@ -253,7 +243,6 @@ func (mb *MsgBroker) listenRoutine() {
 	log.Println("[listenRoutine] - Start listenRoutine loop...")
 	for {
 
-		log.Println("[listenRoutine] - call readMsg()")
 		msg, more := mb.readMsg()
 		msgParts := strings.Split(string(msg), "|")
 
@@ -261,7 +250,7 @@ func (mb *MsgBroker) listenRoutine() {
 		if len(msgParts) > 2 {
 
 			// Get the message senderID
-			
+
 			// DEVTOD for now it is assumed that index 1 is sender id
 			msgSenderID := msgParts[1]
 
@@ -276,28 +265,19 @@ func (mb *MsgBroker) listenRoutine() {
 					msg = string(TOKEN_HAT) + msg + string(TOKEN_ABOUT)
 					log.Printf("[listenRoutine] send message to output uart: %v\n", msg)
 					mb.uartOut.Write([]byte(msg))
-				} else {
-					log.Printf("[listenRoutine] drop message because there is no output uart or this is a loopback sender: %v\n", msg)
 				}
 
-			} else {
-				log.Printf("[listenRoutine] drop message because senderID same as broker senderID: %v\n", msg)
 			}
 
-		} else {
-			log.Printf("[listenRoutine] - no message or not enough parts, msgParts: %v", msgParts)
 		}
 
-		
 		// If there are no more messages in the buffer then wait before trying again
 		// otherwise try again without delay
-		if !more {						
+		if !more {
 			// DEVTODO - what is is a good delay time? I don't want to run down the battery
 			runtime.Gosched()
 			time.Sleep(time.Millisecond * 2000)
 		}
-
-
 
 	}
 }
@@ -306,16 +286,14 @@ func (mb *MsgBroker) listenRoutine() {
 readMsg will read the input buffer looking for a message
 
 Given:
-
 	this-is-junk^Foo|some-sender|This is a foo message~^Bar|some-sender|This is a bar message~more-junk
 
 The following string is returned:
-
 	Foo|some-sender|This is a foo message
 
 The next time readMsg() is called this is returned:
-
 	Bar|some-sender|This is a bar message
+
 */
 func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
@@ -324,7 +302,6 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
 	// Seek receive buffer to start of next message
 	// if no message is found then get out
-	log.Println("[readMsg] - calling seekStartOfMessage()")
 	if !mb.seekStartOfMessage() {
 		log.Println("[readMsg] - did not find start of message")
 		return "", false
@@ -333,18 +310,16 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 	//
 	// Start read message loop
 	//
-	log.Println("[readMsg] - start read loop")
 	for {
 
 		// Read from buffer
 		data, ok := mb.uartIn.ReadByte()
 
 		if data == TOKEN_ABOUT {
-			log.Printf("[readMsg] - break out of read loop because we hit the end of message; data: [%v]", data)
 			break
-		} 
+		}
 
-		if ok != nil  {
+		if ok != nil {
 			log.Printf("[readMsg] - end of buffer hit before we found the end of message, pause then read more...")
 			runtime.Gosched()
 			time.Sleep(time.Millisecond * 100)
@@ -355,10 +330,10 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
 	// Set return values
 	if len(message) > 0 {
-		log.Printf("[readMsg] - return this message:  %v\n", string(message))
+		// log.Printf("[readMsg] - return this message:  %v\n", string(message))
 		return string(message), mb.uartIn.Buffered() > 0
 	} else {
-		log.Printf("[readMsg] - return empty message\n")
+		// log.Printf("[readMsg] - return empty message\n")
 		return "", mb.uartIn.Buffered() > 0
 	}
 
@@ -366,23 +341,20 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
 func (mb *MsgBroker) seekStartOfMessage() (isFound bool) {
 
-	log.Printf("[seekStartOfMessage] - start read loop\n")
-	
 	for {
 		data, eob := mb.uartIn.ReadByte()
-		
+
 		// if we hit end of buffer before we find message return not found
 		if eob != nil {
 			log.Printf("[seekStartOfMessage] - return because we hit end of buffer")
 			return false
 		}
-		
+
 		// the '^' character is the start of a message
 		if data == TOKEN_HAT {
-			log.Printf("[seekStartOfMessage] - return because we hit start of message character")
 			return true
 		}
-		
+
 	}
 
 }
