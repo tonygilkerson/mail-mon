@@ -275,6 +275,7 @@ func (mb *MsgBroker) listenRoutine() {
 		// otherwise try again without delay
 		if !more {
 			// DEVTODO - what is is a good delay time? I don't want to run down the battery
+			//           or just make it configurable
 			runtime.Gosched()
 			time.Sleep(time.Millisecond * 2000)
 		}

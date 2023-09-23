@@ -1,3 +1,9 @@
+//
+// The program is the communication component for the display
+//
+// It manages the LORA RX/TX cycle.  Messages received via LORA are 
+// send to the epaper component via the UART message bus
+//
 package main
 
 import (
@@ -27,18 +33,12 @@ func main() {
 	//
 	// Named PINs
 	//
-	// var dspCs machine.Pin = machine.GP10
-	// var dspDc machine.Pin = machine.GP11
-	// var dspRst machine.Pin = machine.GP12
-	// var dspBusy machine.Pin = machine.GP13
-	// // var dspClk machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
-	// // var dspDin machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
 
 	var loraEn machine.Pin = machine.GP15
 	var loraSdi machine.Pin = machine.GP16 // machine.SPI0_SDI_PIN
 	var loraCs machine.Pin = machine.GP17
-	var scm machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
-	var sdo machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
+	var loraSck machine.Pin = machine.GP18 // machine.SPI0_SCK_PIN
+	var loraSdo machine.Pin = machine.GP19 // machine.SPI0_SDO_PIN
 	var loraRst machine.Pin = machine.GP20
 	var loraDio0 machine.Pin = machine.GP21 // (GP21--G0) Must be connected from pico to breakout for radio events IRQ to work
 	var loraDio1 machine.Pin = machine.GP22 // (GP22--G1) I don't now what this does but it seems to need to be connected
@@ -60,7 +60,7 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, scm, sdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 	//
 	// go routines
