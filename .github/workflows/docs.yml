@@ -15,10 +15,10 @@ jobs:
       - name: Checkout main
         uses: actions/checkout@v2
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10' 
-      - run: pip3 install mkdocs-same-dir
+      # - uses: actions/setup-python@v5
+      #   with:
+      #     python-version: '3.10' 
+      # - run: pip3 install mkdocs-same-dir
 
       - name: Deploy docs
         uses: mhausenblas/mkdocs-deploy-gh-pages@master
@@ -29,4 +29,4 @@ jobs:
           # CONFIG_FILE: folder/mkdocs.yml
           # EXTRA_PACKAGES: build-base
           # GITHUB_DOMAIN: github.myenterprise.com
-          # REQUIREMENTS: folder/requirements.txt
+          REQUIREMENTS: requirements.txt
