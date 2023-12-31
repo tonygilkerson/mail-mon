@@ -1,6 +1,6 @@
 module github.com/tonygilkerson/mbx-iot
 
-go 1.20
+go 1.21
 
 // require tinygo.org/x/drivers v0.24.0
 
