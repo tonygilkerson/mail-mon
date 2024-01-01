@@ -1,9 +1,7 @@
-//
 // The program is the communication component for the display
 //
-// It manages the LORA RX/TX cycle.  Messages received via LORA are 
+// It manages the LORA RX/TX cycle.  Messages received via LORA are
 // send to the epaper component via the UART message bus
-//
 package main
 
 import (
@@ -14,11 +12,13 @@ import (
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
+	"github.com/tonygilkerson/mbx-iot/internal/umsg"
 	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 	"tinygo.org/x/drivers/sx127x"
 )
 
 const (
+	SENDER_ID = "dsp.com"
 	// HEARTBEAT_DURATION_SECONDS        = 300
 	HEARTBEAT_DURATION_SECONDS        = 11
 	TXRX_LOOP_TICKER_DURATION_SECONDS = 9
@@ -34,6 +34,11 @@ func main() {
 	// Named PINs
 	//
 
+	var uartInTx machine.Pin = machine.GP0  // UART0
+	var uartInRx machine.Pin = machine.GP1  // UART0
+	var uartOutTx machine.Pin = machine.GP4 // UART1
+	var uartOutRx machine.Pin = machine.GP5 // UART1
+
 	var loraEn machine.Pin = machine.GP15
 	var loraSdi machine.Pin = machine.GP16 // machine.SPI0_SDI_PIN
 	var loraCs machine.Pin = machine.GP17
@@ -46,11 +51,41 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	//
+	// UARTs
+	//
+	uartIn := machine.UART0
+	uartOut := machine.UART1
+
+	//
 	// run light
 	//
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	/////////////////////////////////////////////////////////////////////////////
+	// Broker
+	/////////////////////////////////////////////////////////////////////////////
+
+	fooCh := make(chan umsg.FooMsg)
+	barCh := make(chan umsg.BarMsg)
+
+	mb := umsg.NewBroker(
+		SENDER_ID,
+
+		uartIn,
+		uartInTx,
+		uartInRx,
+
+		uartOut,
+		uartOutTx,
+		uartOutRx,
+
+		fooCh,
+		barCh,
+	)
+	log.Printf("[main] - configure message broker\n")
+	mb.Configure()
 
 	//
 	// 	Setup Lora
@@ -65,7 +100,7 @@ func main() {
 	//
 	// go routines
 	//
-	// DEVTODO - it works as a go routine but I dont want it to run as a go routine
+	// DEVTODO - it works as a go routine but I don't want it to run as a go routine
 	go radio.LoraRxTxRunner()
 
 	//
@@ -78,6 +113,11 @@ func main() {
 
 		log.Printf("------------------MainLoopHeartbeat-------------------- %v", count)
 		count += 1
+
+		//
+		// Test sending a message over UART
+		//
+		sendFooTest(&mb)
 
 		//
 		// Send Heartbeat to Tx queue
@@ -114,7 +154,7 @@ func rxQConsumer(rxQ *chan string) {
 
 	for len(*rxQ) > 0 {
 
-		msgBatch = <- *rxQ
+		msgBatch = <-*rxQ
 		log.Printf("Message batch: [%v]", msgBatch)
 
 		messages := road.SplitMessageBatch(msgBatch)
@@ -123,4 +163,18 @@ func rxQConsumer(rxQ *chan string) {
 		}
 
 	}
+}
+
+// use fooTest utill for now. When I start getting messages from the gateway I can
+// change this to something more real
+func sendFooTest(mb *umsg.MsgBroker) {
+
+	var fm umsg.FooMsg
+	fm.Kind = "Foo"
+	fm.SenderID = SENDER_ID
+	fm.Name = "This is a foo message from the dsp.com Pico!"
+
+	log.Printf("dsp.com.sendFooTest: PublishFoo(fm): %s\n", fm.Name)
+	mb.PublishFoo(fm)
+
 }

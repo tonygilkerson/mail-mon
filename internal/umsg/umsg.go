@@ -3,7 +3,7 @@ umsg - UART messaging
 
 # Once configured the user of this package can publish message message to other devices via UART
 
-DEVTODO - describe how devices are connected with on uart use for input and the other uart used for output
+DEVTODO - describe how devices are connected with one uart use for input and the other uart used for output
   - describe how the devices are expected to make a loop so that a message sent is forwarded around the loop until returns to the sender
   - describe how users can subscribe to messages by listening to specific message queues (aka channels)
 */
@@ -180,7 +180,7 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 	switch msgParts[0] {
 
 	case string(MSG_FOO):
-		log.Printf("[dispatchMsgToChannel] - %v\n", MSG_FOO)
+		log.Printf("umsg.dispatchMsgToChannel: %v\n", MSG_FOO)
 		msg := makeFoo(msgParts)
 
 		if mb.fooCh != nil {
@@ -188,7 +188,7 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 		}
 
 	case string(MSG_BAR):
-		log.Printf("[dispatchMsgToChannel] - %v\n", MSG_BAR)
+		log.Printf("umsg.dispatchMsgToChannel: %v\n", MSG_BAR)
 		msg := makeBar(msgParts)
 		if mb.barCh != nil {
 			mb.barCh <- *msg
@@ -240,13 +240,13 @@ to a specific channel based on the message type
 */
 func (mb *MsgBroker) listenRoutine() {
 
-	log.Println("[listenRoutine] - Start listenRoutine loop...")
+	log.Println("umsg.listenRoutine: Start listenRoutine loop...")
 	for {
 
 		msg, more := mb.readMsg()
 		msgParts := strings.Split(string(msg), "|")
 
-		log.Println("[listenRoutine] - Check if empty message")
+		log.Println("umsg.listenRoutine: Check if empty message")
 		if len(msgParts) > 2 {
 
 			// Get the message senderID
@@ -255,15 +255,17 @@ func (mb *MsgBroker) listenRoutine() {
 			msgSenderID := msgParts[1]
 
 			// Only dispatch messages from other senders
+			// This can happen when a message makes it way around the loop and arrives back at the original sender
 			if msgSenderID != mb.senderID {
 
 				mb.dispatchMsgToChannel(msgParts)
 
 				// Forward all messages with the exception of the loopback sender to prevent endless loop
+				// The loopback is mainly used for testing. It allows you point uartOut->UartIn on the same pico
 				if mb.uartOut != nil && msgSenderID != LOOKBACK_SENDERID {
 					// rewrap the message to start with ^ and end with ~
 					msg = string(TOKEN_HAT) + msg + string(TOKEN_ABOUT)
-					log.Printf("[listenRoutine] send message to output uart: %v\n", msg)
+					log.Printf("umsg.listenRoutine: send message to output uart: %v\n", msg)
 					mb.uartOut.Write([]byte(msg))
 				}
 
@@ -304,7 +306,7 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 	// Seek receive buffer to start of next message
 	// if no message is found then get out
 	if !mb.seekStartOfMessage() {
-		log.Println("[readMsg] - did not find start of message")
+		log.Println("umsg.readMsg: did not find start of message")
 		return "", false
 	}
 
@@ -321,7 +323,7 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 		}
 
 		if ok != nil {
-			log.Printf("[readMsg] - end of buffer hit before we found the end of message, pause then read more...")
+			log.Printf("umsg.readMsg: end of buffer hit before we found the end of message, pause then read more...")
 			runtime.Gosched()
 			time.Sleep(time.Millisecond * 100)
 		} else {
@@ -331,10 +333,10 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
 	// Set return values
 	if len(message) > 0 {
-		// log.Printf("[readMsg] - return this message:  %v\n", string(message))
+		// log.Printf("umsg.readMsg: return this message:  %v\n", string(message))
 		return string(message), mb.uartIn.Buffered() > 0
 	} else {
-		// log.Printf("[readMsg] - return empty message\n")
+		// log.Printf("umsg.readMsg: return empty message\n")
 		return "", mb.uartIn.Buffered() > 0
 	}
 
@@ -347,7 +349,7 @@ func (mb *MsgBroker) seekStartOfMessage() (isFound bool) {
 
 		// if we hit end of buffer before we find message return not found
 		if eob != nil {
-			log.Printf("[seekStartOfMessage] - return because we hit end of buffer")
+			// log.Printf("umsg.seekStartOfMessage: return because we hit end of buffer")
 			return false
 		}
 

@@ -54,10 +54,24 @@ func FontExamples(display *epd4in2.Device) {
 	// tinyfont.WriteLineRotated(&display, &freemono.Bold9pt7b, 55, 60, "@tinyGolang", black, tinyfont.ROTATION_90)
 
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50, "ABCDEFG\nHIJKLMN\nOPQRSTU", black, tinyfont.NO_ROTATION)
-	tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "ABCDEFG\nHIJKLMN\nOPQRSTU\nH", black, tinyfont.NO_ROTATION)
+	tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "ABCDEFG\nHIJKLMN\nOPQRSTU\nHH", black, tinyfont.NO_ROTATION)
 
 	// tinyfont.WriteLineColorsRotated(&display, &freemono.Bold9pt7b, 45, 180, "tinyfont", []color.RGBA{white, black}, tinyfont.ROTATION_270)
 
+
+	log.Println("[FontExamples] Display()")
+	display.Display()
+
+	log.Println("[FontExamples] WaitUntilIdle()")
+	display.WaitUntilIdle()
+
+}
+
+func FontExamples2(display *epd4in2.Device) {
+
+	black := color.RGBA{1, 1, 1, 255}
+	time.Sleep(3 * time.Second)
+	tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "HH", black, tinyfont.NO_ROTATION)
 
 	log.Println("[FontExamples] Display()")
 	display.Display()

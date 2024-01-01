@@ -46,8 +46,6 @@ func main() {
 	fooCh := make(chan umsg.FooMsg)
 	barCh := make(chan umsg.BarMsg)
 
-	// mb.SetFooCh(fooCh)
-
 	mb := umsg.NewBroker(
 		"umsg",
 
