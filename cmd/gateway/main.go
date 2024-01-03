@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"machine"
 	"runtime"
@@ -13,7 +14,7 @@ import (
 )
 
 const (
-	HEARTBEAT_DURATION_SECONDS = 8
+	HEARTBEAT_DURATION_SECONDS        = 8
 	TXRX_LOOP_TICKER_DURATION_SECONDS = 6
 )
 
@@ -53,7 +54,6 @@ func main() {
 	uart := machine.UART0
 	uart.Configure(machine.UARTConfig{BaudRate: 115200, TX: uartTx, RX: uartRx})
 
-
 	//
 	// 	Setup Lora
 	//
@@ -65,28 +65,34 @@ func main() {
 	log.Println("Setup LORA")
 	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
+	// Create status map
+	iotStatus := make(map[string]string)
 
 	// Launch go routines
 	log.Println("Launch go routines")
-	go writeToSerial(&rxQ, uart)
+	go writeToSerial(&rxQ, uart, iotStatus)
 	go readFromSerial(&txQ, uart)
 	go radio.LoraRxTxRunner()
 
 	// Main loop
 	log.Println("Start main loop")
+
 	ticker := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
 	var count int
 
 	for range ticker.C {
 
-		log.Printf("------------------MainLoopHeartbeat-------------------- %v", count)
+		log.Printf("------------------mbx-iot gateway MainLoopHeartbeat-------------------- %v", count)
 		count += 1
+		updateStatus(iot.GatewayMainLoopHeartbeat, iotStatus)
 
 		//
-		// Send Heartbeat to Tx queue
+		// Send out status on each heartbeat
 		//
-		txQ <- iot.GatewayMainLoopHeartbeat
-
+		for k, v := range iotStatus {
+			txQ <- fmt.Sprintf("%s:%s", k, v)
+		}
+		
 		dsp.RunLight(led, 2)
 		runtime.Gosched()
 	}
@@ -99,8 +105,7 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-
-func writeToSerial(rxQ *chan string, uart *machine.UART) {
+func writeToSerial(rxQ *chan string, uart *machine.UART, iotStatus map[string]string) {
 	var msgBatch string
 
 	for msgBatch = range *rxQ {
@@ -111,6 +116,7 @@ func writeToSerial(rxQ *chan string, uart *machine.UART) {
 		for _, msg := range messages {
 			log.Printf("Write to serial: [%v]", msg)
 			uart.Write([]byte(msg))
+			updateStatus(msg, iotStatus)
 			time.Sleep(time.Millisecond * 50) // Mark the End of a message
 		}
 
@@ -146,6 +152,28 @@ func readFromSerial(txQ *chan string, uart *machine.UART) {
 		}
 
 		runtime.Gosched()
+	}
+
+}
+
+func updateStatus(msg string, iotStatus map[string]string) {
+	// Get now as a string
+	t := time.Now()
+	ts := fmt.Sprintf(t.Format("20060102150405"))
+
+	// Update status for given
+	switch {
+
+	case msg == iot.GatewayMainLoopHeartbeat:
+		iotStatus[iot.GatewayMainLoopHeartbeat] = ts
+		log.Printf("gateway.iotStatus: update GatewayMainLoopHeartbeat status with timestamp: %s\n", ts)
+
+	case msg == iot.MbxDoorOpened:
+		iotStatus[iot.MbxDoorOpened] = ts
+		log.Printf("gateway.iotStatus: update mbxMailboxDoorOpenedCount status with timestamp: %s\n", ts)
+
+	default:
+		log.Printf("gateway.iotStatus: No-op: %s\n", msg)
 	}
 
 }
