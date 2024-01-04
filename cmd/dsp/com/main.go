@@ -5,9 +5,11 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"machine"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
@@ -63,6 +65,9 @@ func main() {
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
+	// Create status map
+	iotStatus := make(map[string]string)
+	
 	/////////////////////////////////////////////////////////////////////////////
 	// Broker
 	/////////////////////////////////////////////////////////////////////////////
@@ -115,25 +120,15 @@ func main() {
 		count += 1
 
 		//
-		// Test sending a message over UART
-		//
-		sendFooTest(&mb)
-
-		//
 		// Send Heartbeat to Tx queue
 		//
 		txQ <- iot.DspMainLoopHeartbeat
 		dsp.RunLight(led, 2)
 
 		//
-		// Do a Lora Rx Tx cycle
-		//
-		// radio.LoraRxTx()
-
-		//
 		// Consume any messages received
 		//
-		rxQConsumer(&rxQ)
+		rxQConsumer(&rxQ, &mb, iotStatus)
 
 		//
 		// Let someone else have a turn
@@ -149,7 +144,7 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func rxQConsumer(rxQ *chan string) {
+func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker, iotStatus map[string]string) {
 	var msgBatch string
 
 	for len(*rxQ) > 0 {
@@ -159,20 +154,41 @@ func rxQConsumer(rxQ *chan string) {
 
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
-			log.Printf("dsp.rxQConsumer: Message: [%v]", msg)
+			log.Printf("dsp.com.rxQConsumer: Message: [%v]", msg)
+
+			// Look for messages we are interested in
+			switch {
+				
+			case strings.Contains(msg, string(iot.MbxDoorOpened)):
+				parts := strings.Split(msg, ":")
+
+				lastStatus := iotStatus[iot.MbxDoorOpened]
+				var currentStatus string
+				if len(parts) > 0 {
+					currentStatus = parts[1]
+				}
+
+				if currentStatus != lastStatus {
+					log.Printf("dsp.com.rxQConsumer: Status change for: %s, Current status: %s Last status: %s\n", iot.MbxDoorOpened,currentStatus,lastStatus)
+					iotStatus[iot.MbxDoorOpened] = currentStatus
+				
+					sendFooTest(mb, currentStatus)
+				}
+				
+			}
 		}
 
 	}
 }
 
-// use fooTest utill for now. When I start getting messages from the gateway I can
+// use fooTest util for now. When I start getting messages from the gateway I can
 // change this to something more real
-func sendFooTest(mb *umsg.MsgBroker) {
+func sendFooTest(mb *umsg.MsgBroker, status string) {
 
 	var fm umsg.FooMsg
 	fm.Kind = "Foo"
 	fm.SenderID = SENDER_ID
-	fm.Name = "This is a foo message from the dsp.com Pico!"
+	fm.Name = fmt.Sprintf("This is a foo message status: %s",status)
 
 	log.Printf("dsp.com.sendFooTest: PublishFoo(fm): %s\n", fm.Name)
 	mb.PublishFoo(fm)

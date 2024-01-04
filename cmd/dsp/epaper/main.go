@@ -108,7 +108,7 @@ func main() {
 	for {
 		receiveFooTest(&mb, fooCh)
 		runtime.Gosched()
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 
 }
@@ -127,31 +127,20 @@ func receiveFooTest(mb *umsg.MsgBroker, fooCh chan umsg.FooMsg) {
 	// Non-blocking ch read that will timeout... boom!
 	boom := time.After(1000 * time.Millisecond)
 	// for {
-		select {
-		case msg = <-fooCh:
-			found = true
-		case <-boom:
-			log.Printf("dsp.epaper.receiveFooTest: Boom! timeout waiting for message\n")
-			break
-		default:
-			log.Printf(".")
-			runtime.Gosched()
-			time.Sleep(50 * time.Millisecond)
-		}
+	select {
+	case msg = <-fooCh:
+		found = true
+	case <-boom:
+		log.Printf("dsp.epaper.receiveFooTest: Boom! timeout waiting for message\n")
+		break
+	default:
+		log.Printf(".")
+		runtime.Gosched()
+		time.Sleep(50 * time.Millisecond)
+	}
 
-		// log.Printf("dsp.epaper.receiveFooTest: found1: %v\n", found)
-		// if found {
-		// 	break
-		// }
-		// log.Printf("dsp.epaper.receiveFooTest: found2: %v\n", found)
-	// }
-
-	log.Printf("dsp.epaper.receiveFooTest: ******************************************************************\n")
 	if found {
 		log.Printf("dsp.epaper.receiveFooTest: SUCCESS, msg: [%v]\n", msg)
-	} else {
-		log.Printf("dsp.epaper.receiveFooTest: FAIL, did not receive message.")
 	}
-	log.Printf("dsp.epaper.receiveFooTest: ******************************************************************\n")
 
 }
