@@ -181,6 +181,7 @@ func updateStatus(msg string, status map[string]string) {
 		msgValue = parts[1]
 	}
 
+
 	// Update status for given
 	switch {
 

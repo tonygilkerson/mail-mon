@@ -88,7 +88,7 @@ func main() {
 	/////////////////////////////////////////////////////////////////////////////
 
 	fooCh := make(chan umsg.FooMsg)
-	statusCh := make(chan umsg.StatusMsg)
+	statusCh := make(chan umsg.StatusMsg, 5)
 
 	mb := umsg.NewBroker(
 		SENDER_ID,

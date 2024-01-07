@@ -13,7 +13,6 @@ import (
 
 type CommunicationMode int
 
-
 // TxOnly
 // The Lora protocol wants you to do both Rx and Tx but if you are a device who's main purpose is to
 // collect and send data only, then the process can be optimized if you set its mode to TxOnly
@@ -170,16 +169,35 @@ func (radio *Radio) LoraRxTxRunner() {
 
 }
 
-func (radio *Radio) LoraRxTx() {
+func (radio *Radio) LoraRxTxUntilReceive() {
+
+	log.Println("road.LoraRxTxUntilReceive: tx loop...")
+
+	for i := 0; i < 3; i++ {
+		log.Println("road.LoraRxTxUntilReceive: call LoraRxTx()")
+		if radio.LoraRxTx() {
+			break
+		}
+
+		runtime.Gosched()
+		time.Sleep(time.Second * 5)
+	}
+
+}
+
+func (radio *Radio) LoraRxTx() (rxData bool) {
 	txQ := radio.TxQ
 	rxQ := radio.RxQ
+
+	// Did we get any data from the Rx?
+	rxData = false
 
 	//
 	// If there are no messages in the channel then get out quick
 	//
 	if radio.CommunicationMode == TxOnly && len(*txQ) == 0 {
 		log.Println("road.LoraRxTx: txQ is empty, mode=TxOnly so getting out early...")
-		return
+		return rxData
 	}
 
 	// Enable the radio
@@ -197,6 +215,7 @@ func (radio *Radio) LoraRxTx() {
 	} else if buf != nil {
 
 		log.Printf("road.LoraRxTx: RX Packet Received: [%v]", string(buf))
+		rxData = true
 
 		// Use non-blocking send so if the channel buffer is full,
 		// the value will get dropped instead of crashing the system
@@ -249,5 +268,6 @@ func (radio *Radio) LoraRxTx() {
 
 	// Disable the radio to save power...
 	radio.EN.Low()
-	
+
+	return rxData
 }

@@ -20,7 +20,10 @@ import (
 
 const (
 	SENDER_ID = "dsp.com"
-	HEARTBEAT_DURATION_SECONDS        = 30
+	HEARTBEAT_DURATION_SECONDS        = 15
+
+	// DEVTODO - Delete this when LoraRxTxRunner is gone
+	//           I need to update the gatway to remove LoraRxTxRunner first
 	TXRX_LOOP_TICKER_DURATION_SECONDS = 10      // I want this to be large
 )
 
@@ -98,11 +101,6 @@ func main() {
 	log.Println("Setup LORA")
 	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
-	//
-	// go routines
-	//
-	// DEVTODO - it works as a go routine but I don't want it to run as a go routine
-	go radio.LoraRxTxRunner()
 
 	//
 	// Main loop
@@ -120,6 +118,13 @@ func main() {
 		//
 		txQ <- iot.DspMainLoopHeartbeat
 		dsp.RunLight(led, 2)
+
+		//
+		// The LoraRxTxUntilReceive will run until something is received 
+		// or it gives up
+		//
+		// DEVTODO - it works as a go routine but I don't want it to run as a go routine
+		go radio.LoraRxTxUntilReceive()
 
 		//
 		// Consume any messages received
