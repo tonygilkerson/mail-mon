@@ -5,7 +5,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"machine"
 	"runtime"
@@ -21,9 +20,8 @@ import (
 
 const (
 	SENDER_ID = "dsp.com"
-	// HEARTBEAT_DURATION_SECONDS        = 300
-	HEARTBEAT_DURATION_SECONDS        = 11
-	TXRX_LOOP_TICKER_DURATION_SECONDS = 9
+	HEARTBEAT_DURATION_SECONDS        = 30
+	TXRX_LOOP_TICKER_DURATION_SECONDS = 10      // I want this to be large
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -65,15 +63,13 @@ func main() {
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	// Create status map
-	iotStatus := make(map[string]string)
-	
+
 	/////////////////////////////////////////////////////////////////////////////
 	// Broker
 	/////////////////////////////////////////////////////////////////////////////
 
 	fooCh := make(chan umsg.FooMsg)
-	barCh := make(chan umsg.BarMsg)
+	statusCh := make(chan umsg.StatusMsg)
 
 	mb := umsg.NewBroker(
 		SENDER_ID,
@@ -87,7 +83,7 @@ func main() {
 		uartOutRx,
 
 		fooCh,
-		barCh,
+		statusCh,
 	)
 	log.Printf("[main] - configure message broker\n")
 	mb.Configure()
@@ -116,7 +112,7 @@ func main() {
 
 	for range ticker.C {
 
-		log.Printf("------------------MainLoopHeartbeat-------------------- %v", count)
+		log.Printf("------------------DspMainLoopHeartbeat-------------------- %v", count)
 		count += 1
 
 		//
@@ -128,7 +124,7 @@ func main() {
 		//
 		// Consume any messages received
 		//
-		rxQConsumer(&rxQ, &mb, iotStatus)
+		rxQConsumer(&rxQ, &mb)
 
 		//
 		// Let someone else have a turn
@@ -144,53 +140,52 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker, iotStatus map[string]string) {
+func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 	var msgBatch string
 
 	for len(*rxQ) > 0 {
 
 		msgBatch = <-*rxQ
-		log.Printf("Message batch: [%v]", msgBatch)
+		log.Printf("dsp.com.rxQConsumer: Message batch: [%v]", msgBatch)
 
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
 			log.Printf("dsp.com.rxQConsumer: Message: [%v]", msg)
 
-			// Look for messages we are interested in
-			switch {
-				
-			case strings.Contains(msg, string(iot.MbxDoorOpened)):
-				parts := strings.Split(msg, ":")
+			//
+			// Each message is a a key:values pair
+			//
+			parts := strings.Split(msg, ":")
+			var msgKey string
+			var msgValue string
 
-				lastStatus := iotStatus[iot.MbxDoorOpened]
-				var currentStatus string
-				if len(parts) > 0 {
-					currentStatus = parts[1]
-				}
-
-				if currentStatus != lastStatus {
-					log.Printf("dsp.com.rxQConsumer: Status change for: %s, Current status: %s Last status: %s\n", iot.MbxDoorOpened,currentStatus,lastStatus)
-					iotStatus[iot.MbxDoorOpened] = currentStatus
-				
-					sendFooTest(mb, currentStatus)
-				}
-				
+			if len(parts) > 0 {
+				msgKey = parts[0]
 			}
+			if len(parts) > 1 {
+				msgValue = parts[1]
+			}
+
+			//
+			// Send stats to display over UART
+			//
+			sendStatus(mb, msgKey, msgValue)
+
 		}
 
 	}
 }
 
-// use fooTest util for now. When I start getting messages from the gateway I can
-// change this to something more real
-func sendFooTest(mb *umsg.MsgBroker, status string) {
+// Send Status
+func sendStatus(mb *umsg.MsgBroker, msgKey string, msgValue string) {
 
-	var fm umsg.FooMsg
-	fm.Kind = "Foo"
-	fm.SenderID = SENDER_ID
-	fm.Name = fmt.Sprintf("This is a foo message status: %s",status)
+	var statusMsg umsg.StatusMsg
+	statusMsg.Kind = umsg.MSG_STATUS
+	statusMsg.SenderID = SENDER_ID
+	statusMsg.Key = msgKey
+	statusMsg.Value = msgValue
 
-	log.Printf("dsp.com.sendFooTest: PublishFoo(fm): %s\n", fm.Name)
-	mb.PublishFoo(fm)
+	log.Printf("dsp.com.sendStatus: Publish on message bus, Status key: %s, value: %s", msgKey, msgValue)
+	mb.PublishStatus(statusMsg)
 
 }

@@ -28,7 +28,7 @@ const (
 
 const (
 	MSG_FOO MsgType = "Foo"
-	MSG_BAR MsgType = "Bar"
+	MSG_STATUS MsgType = "Status"
 )
 
 // ^Foo|some-sender|This is a foo message~
@@ -37,14 +37,17 @@ type FooMsg struct {
 	SenderID string
 	Name     string
 }
-type BarMsg struct {
+
+// ^Status|some-sender|somekey|somevalue~
+type StatusMsg struct {
 	Kind     MsgType
 	SenderID string
-	Name     string
+	Key      string
+	Value    string
 }
 
 type MsgInterface interface {
-	FooMsg | BarMsg
+	FooMsg | StatusMsg
 }
 
 type UART interface {
@@ -69,7 +72,7 @@ type MsgBroker struct {
 	uartOutRxPin machine.Pin
 
 	fooCh chan FooMsg
-	barCh chan BarMsg
+	statusCh chan StatusMsg
 }
 
 func NewBroker(
@@ -84,7 +87,7 @@ func NewBroker(
 	uartOutRxPin machine.Pin,
 
 	fooCh chan FooMsg,
-	barCh chan BarMsg,
+	statusCh chan StatusMsg,
 
 ) MsgBroker {
 
@@ -108,8 +111,8 @@ func NewBroker(
 		mb.fooCh = fooCh
 	}
 
-	if barCh != nil {
-		mb.barCh = barCh
+	if statusCh != nil {
+		mb.statusCh = statusCh
 	}
 
 	return mb
@@ -151,15 +154,16 @@ func (mb *MsgBroker) PublishFoo(foo FooMsg) {
 
 }
 
-func (mb *MsgBroker) PublishBar(bar BarMsg) {
+func (mb *MsgBroker) PublishStatus(sm StatusMsg) {
 
-	if bar.SenderID == "" {
-		bar.SenderID = mb.senderID
+	if sm.SenderID == "" {
+		sm.SenderID = mb.senderID
 	}
 
-	msgStr := "^" + string(bar.Kind)
-	msgStr = msgStr + "|" + bar.SenderID
-	msgStr = msgStr + "|" + bar.Name + "~"
+	msgStr := "^" + string(sm.Kind)
+	msgStr = msgStr + "|" + sm.SenderID
+	msgStr = msgStr + "|" + sm.Key
+	msgStr = msgStr + "|" + sm.Value + "~"
 
 	mb.writeMsg(msgStr)
 
@@ -187,11 +191,11 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 			mb.fooCh <- *msg
 		}
 
-	case string(MSG_BAR):
-		log.Printf("umsg.dispatchMsgToChannel: %v\n", MSG_BAR)
-		msg := makeBar(msgParts)
-		if mb.barCh != nil {
-			mb.barCh <- *msg
+	case string(MSG_STATUS):
+		log.Printf("umsg.dispatchMsgToChannel: %v\n", MSG_STATUS)
+		msg := makeStatus(msgParts)
+		if mb.statusCh != nil {
+			mb.statusCh <- *msg
 		}
 
 	default:
@@ -217,21 +221,24 @@ func makeFoo(msgParts []string) *FooMsg {
 	return fooMsg
 }
 
-func makeBar(msgParts []string) *BarMsg {
+func makeStatus(msgParts []string) *StatusMsg {
 
-	barMsg := new(BarMsg)
+	statusMsg := new(StatusMsg)
 
 	if len(msgParts) > 0 {
-		barMsg.Kind = MSG_BAR
+		statusMsg.Kind = MSG_STATUS
 	}
 	if len(msgParts) > 1 {
-		barMsg.SenderID = msgParts[1]
+		statusMsg.SenderID = msgParts[1]
 	}
 	if len(msgParts) > 2 {
-		barMsg.Name = msgParts[2]
+		statusMsg.Key = msgParts[2]
+	}
+	if len(msgParts) > 3 {
+		statusMsg.Value = msgParts[3]
 	}
 
-	return barMsg
+	return statusMsg
 }
 
 /*
@@ -246,7 +253,7 @@ func (mb *MsgBroker) listenRoutine() {
 		msg, more := mb.readMsg()
 		msgParts := strings.Split(string(msg), "|")
 
-		log.Println("umsg.listenRoutine: Check if empty message")
+		// log.Println("umsg.listenRoutine: Check if empty message")
 		if len(msgParts) > 2 {
 
 			// Get the message senderID
@@ -289,14 +296,16 @@ func (mb *MsgBroker) listenRoutine() {
 readMsg will read the input buffer looking for a message
 
 Given:
+
 	this-is-junk^Foo|some-sender|This is a foo message~^Bar|some-sender|This is a bar message~more-junk
 
 The following string is returned:
+
 	Foo|some-sender|This is a foo message
 
 The next time readMsg() is called this is returned:
-	Bar|some-sender|This is a bar message
 
+	Bar|some-sender|This is a bar message
 */
 func (mb *MsgBroker) readMsg() (msg string, more bool) {
 
@@ -306,7 +315,7 @@ func (mb *MsgBroker) readMsg() (msg string, more bool) {
 	// Seek receive buffer to start of next message
 	// if no message is found then get out
 	if !mb.seekStartOfMessage() {
-		log.Println("umsg.readMsg: did not find start of message")
+		// log.Println("umsg.readMsg: did not find start of message")
 		return "", false
 	}
 

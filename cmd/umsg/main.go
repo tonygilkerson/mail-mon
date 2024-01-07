@@ -44,7 +44,7 @@ func main() {
 	/////////////////////////////////////////////////////////////////////////////
 
 	fooCh := make(chan umsg.FooMsg)
-	barCh := make(chan umsg.BarMsg)
+	statusCh := make(chan umsg.StatusMsg)
 
 	mb := umsg.NewBroker(
 		"umsg",
@@ -58,7 +58,7 @@ func main() {
 		uartOutRx,
 
 		fooCh,
-		barCh,
+		statusCh,
 	)
 	log.Printf("[main] - configure message broker\n")
 	mb.Configure()
@@ -68,7 +68,7 @@ func main() {
 	/////////////////////////////////////////////////////////////////////////////
 
 	fooTest(&mb, fooCh)
-	barTest(&mb, barCh)
+	iotStatusTest(&mb, statusCh)
 
 	// Done
 	log.Printf("[main] - **** DONE ****")
@@ -79,7 +79,7 @@ func main() {
 func fooTest(mb *umsg.MsgBroker, fooCh chan umsg.FooMsg){
 
 	var fm umsg.FooMsg
-	fm.Kind = "Foo"
+	fm.Kind = umsg.MSG_FOO
 	fm.SenderID = umsg.LOOKBACK_SENDERID
 	fm.Name = "This is a foo message from loopback"
 
@@ -122,27 +122,28 @@ func fooTest(mb *umsg.MsgBroker, fooCh chan umsg.FooMsg){
 
 }
 
-func barTest(mb *umsg.MsgBroker, barCh chan umsg.BarMsg){
+func iotStatusTest(mb *umsg.MsgBroker, statusCh chan umsg.StatusMsg){
 
-	var bm umsg.BarMsg
-	bm.Kind = "Bar"
-	bm.SenderID = umsg.LOOKBACK_SENDERID
-	bm.Name = "This is a bar message from loopback"
+	var statusMsg umsg.StatusMsg
+	statusMsg.Kind = umsg.MSG_STATUS
+	statusMsg.SenderID = umsg.LOOKBACK_SENDERID
+	statusMsg.Key = "This is a status key"
+	statusMsg.Value = "This is status value"
 
-	log.Printf("[barTest] - PublishBar(bm)\n")
-	mb.PublishBar(bm)
+	log.Printf("iotStatusTest: PublishIosStatus(statusMsg)\n")
+	mb.PublishStatus(statusMsg)
 
 	var found bool = false
-	var msg umsg.BarMsg
+	var msg umsg.StatusMsg
 
 	// Non-blocking ch read that will timeout... boom!
 	boom := time.After(3000 * time.Millisecond)
 	for {
 		select {
-		case msg = <-barCh:
+		case msg = <-statusCh:
 			found = true
 		case <-boom:
-			log.Printf("[fooTest] - Boom! timeout waiting for message\n")
+			log.Printf("iotStatusTest: Boom! timeout waiting for message\n")
 			break
 		default:
 			runtime.Gosched()
@@ -154,16 +155,16 @@ func barTest(mb *umsg.MsgBroker, barCh chan umsg.BarMsg){
 		}
 	}
 
-	log.Printf("[barTest] - ******************************************************************\n")
+	log.Printf("iotStatusTest: ******************************************************************\n")
 	if found {
-		if msg.Name == bm.Name {
-			log.Printf("[barTest] - SUCCESS, msg: [%v]\n", msg)
+		if msg.Key == statusMsg.Key {
+			log.Printf("iotStatusTest: SUCCESS, msg: [%v]\n", msg)
 		} else {
-			log.Printf("[barTest] - FAIL, wrong msg: [%v]\n", msg)
+			log.Printf("iotStatusTest: FAIL, wrong msg: [%v]\n", msg)
 		}
 	} else {
-		log.Printf("[barTest] - FAIL, did not receive message.")
+		log.Printf("iotStatusTest: FAIL, did not receive message.")
 	}
-	log.Printf("[barTest] - ******************************************************************\n")
+	log.Printf("iotStatusTest: ******************************************************************\n")
 
 }

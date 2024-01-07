@@ -5,6 +5,7 @@ import (
 	"log"
 	"machine"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
@@ -66,11 +67,11 @@ func main() {
 	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 	// Create status map
-	iotStatus := make(map[string]string)
+	status := make(map[string]string)
 
 	// Launch go routines
 	log.Println("Launch go routines")
-	go writeToSerial(&rxQ, uart, iotStatus)
+	go writeToSerial(&rxQ, uart, status)
 	go readFromSerial(&txQ, uart)
 	go radio.LoraRxTxRunner()
 
@@ -84,15 +85,15 @@ func main() {
 
 		log.Printf("------------------mbx-iot gateway MainLoopHeartbeat-------------------- %v", count)
 		count += 1
-		updateStatus(iot.GatewayMainLoopHeartbeat, iotStatus)
+		updateStatus(iot.GatewayMainLoopHeartbeat, status)
 
 		//
 		// Send out status on each heartbeat
 		//
-		for k, v := range iotStatus {
+		for k, v := range status {
 			txQ <- fmt.Sprintf("%s:%s", k, v)
 		}
-		
+
 		dsp.RunLight(led, 2)
 		runtime.Gosched()
 	}
@@ -105,18 +106,18 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func writeToSerial(rxQ *chan string, uart *machine.UART, iotStatus map[string]string) {
+func writeToSerial(rxQ *chan string, uart *machine.UART, status map[string]string) {
 	var msgBatch string
 
 	for msgBatch = range *rxQ {
 
-		log.Printf("Message batch: [%v]", msgBatch)
+		log.Printf("gateway.writeToSerial: Message batch: [%v]", msgBatch)
 
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
-			log.Printf("Write to serial: [%v]", msg)
+			log.Printf("gateway.writeToSerial: Write to serial: [%v]", msg)
 			uart.Write([]byte(msg))
-			updateStatus(msg, iotStatus)
+			updateStatus(msg, status)
 			time.Sleep(time.Millisecond * 50) // Mark the End of a message
 		}
 
@@ -126,6 +127,11 @@ func writeToSerial(rxQ *chan string, uart *machine.UART, iotStatus map[string]st
 
 }
 
+//
+// readFromSerial will read messages sent from the cluster and broadcast them for receive in the field
+//                currently this is used for testing. The cluster exposed a REST endpoint that can be
+//                post a message that is subsequently read and then transmitted here
+//
 func readFromSerial(txQ *chan string, uart *machine.UART) {
 	data := make([]byte, 250)
 
@@ -156,24 +162,35 @@ func readFromSerial(txQ *chan string, uart *machine.UART) {
 
 }
 
-func updateStatus(msg string, iotStatus map[string]string) {
+func updateStatus(msg string, status map[string]string) {
 	// Get now as a string
 	t := time.Now()
 	ts := fmt.Sprintf(t.Format("20060102150405"))
 
+	//
+	// Each message is a a key:values pair
+	//
+	parts := strings.Split(msg, ":")
+	var msgKey string
+	var msgValue string
+
+	if len(parts) > 0 {
+		msgKey = parts[0]
+	}
+	if len(parts) > 1 {
+		msgValue = parts[1]
+	}
+
 	// Update status for given
 	switch {
 
-	case msg == iot.GatewayMainLoopHeartbeat:
-		iotStatus[iot.GatewayMainLoopHeartbeat] = ts
-		log.Printf("gateway.iotStatus: update GatewayMainLoopHeartbeat status with timestamp: %s\n", ts)
-
-	case msg == iot.MbxDoorOpened:
-		iotStatus[iot.MbxDoorOpened] = ts
-		log.Printf("gateway.iotStatus: update mbxMailboxDoorOpenedCount status with timestamp: %s\n", ts)
-
+	case msgKey == string(iot.MbxTemperature):
+		status[msgKey] = msgValue
+		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, msgValue)
+		
 	default:
-		log.Printf("gateway.iotStatus: No-op: %s\n", msg)
+		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, ts)
+		status[msgKey] = ts
 	}
 
 }

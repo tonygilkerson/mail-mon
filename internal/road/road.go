@@ -163,6 +163,7 @@ func (radio *Radio) LoraRxTxRunner() {
 
 	ticker := time.NewTicker(time.Second * time.Duration(radio.TxRxLoopTickerSec))
 	for range ticker.C {
+		log.Println("road.LoraRxTxRunner: call LoraRxTx()...")
 		radio.LoraRxTx()
 		runtime.Gosched()
 	}
