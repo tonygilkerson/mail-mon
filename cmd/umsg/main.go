@@ -84,7 +84,7 @@ func fooTest(mb *umsg.MsgBroker, fooCh chan umsg.FooMsg){
 	fm.Name = "This is a foo message from loopback"
 
 	log.Printf("[fooTest] - PublishFoo(fm)\n")
-	mb.PublishFoo(fm)
+	mb.PublishFooToUart(fm)
 
 	var found bool = false
 	var msg umsg.FooMsg
@@ -131,7 +131,7 @@ func iotStatusTest(mb *umsg.MsgBroker, statusCh chan umsg.StatusMsg){
 	statusMsg.Value = "This is status value"
 
 	log.Printf("iotStatusTest: PublishIosStatus(statusMsg)\n")
-	mb.PublishStatus(statusMsg)
+	mb.PublishStatusToUart(statusMsg)
 
 	var found bool = false
 	var msg umsg.StatusMsg

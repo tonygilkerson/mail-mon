@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	SENDER_ID = "dsp.epaper"
+	SENDER_ID                  = "dsp.epaper"
 	HEARTBEAT_DURATION_SECONDS = 300
-
 )
 
 var display epd4in2.Device
@@ -146,21 +145,30 @@ func main() {
 			log.Printf("dsp.com.main:  Boom! heartbeat timeout\n")
 		}
 
-		log.Println("dsp.com.main: receiveStatus()")
-		receiveStatus(&mb, statusCh,&content)
+		log.Println("dsp.com.main: Read all old messages on the buffer")
+		mb.UartReader()
+		consumeAllStatusFromChToUpdateContent(statusCh, &content)
+				
+		// DEVTODO - not sure I want to do it this way
+		// log.Println("dsp.com.main: Receive new messages that might come in in the next 30 seconds")
+		// tStart := time.Now()
+		// for time.Since(tStart) < 10*time.Second {
+		// 	mb.UartReader()
+		// }
 
-		log.Println("dsp.com.main: clearDisplay()")
+		log.Println("dsp.com.main: Wait for new messages...")
+		time.Sleep(10 * time.Second)
+		mb.UartReader()
+		consumeAllStatusFromChToUpdateContent(statusCh, &content)
+		
+		log.Println("dsp.com.main: DisplayContent()")
 		dsp.ClearDisplay(&display)
-
-		log.Println("dsp.com.main: fontExamples()")
-		// dsp.FontExamples(&display)
 		content.DisplayContent(&display)
-
+		
 		log.Println("dsp.com.main: Gosched()")
 		runtime.Gosched()
-
 	}
-
+		
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -169,25 +177,29 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func receiveStatus(mb *umsg.MsgBroker, statusCh chan umsg.StatusMsg, content *dsp.Content) {
+// consumeAllStatusFromChToUpdateContent
+func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content *dsp.Content) {
 
 	var msg umsg.StatusMsg
 
-	select {
-	case msg = <-statusCh:
-		log.Printf("dsp.epaper.receiveStatus: SUCCESS, msg: [%v]\n", msg)
-	default:
-		log.Printf("dsp.epaper.receiveStatus: no status msg found")
-	}
+	//
+	// Receive all status messages
+	//
+	for len(statusCh) > 0 {
 
+		msg = <-statusCh
+		log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: msg: [%v]\n", msg)
 
-	//DEVTODO make this more general
-	//        maybe this should be in a different function
-	switch msg.Key {
-	case iot.GatewayMainLoopHeartbeat:
-		log.Printf("dsp.epaper.receiveStatus: call SetGatewayMainLoopHeartbeatStatus()")
-		content.SetGatewayMainLoopHeartbeatStatus(msg.Value)
-	default:
-		log.Printf("dsp.epaper.receiveStatus: Not interested in this content: %v", msg)
+		//
+		// Update display content depending on the type of status received
+		//DEVTODO make this more general
+		//        maybe this should be in a different function
+		switch msg.Key {
+		case iot.GatewayMainLoopHeartbeat:
+			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayMainLoopHeartbeatStatus()")
+			content.SetGatewayMainLoopHeartbeatStatus(msg.Value)
+		default:
+			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: Not interested in this content: %v", msg)
+		}
 	}
 }

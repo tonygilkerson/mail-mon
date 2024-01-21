@@ -64,7 +64,7 @@ func ClearDisplay(display *epd4in2.Device) {
 	display.ClearBuffer()
 	display.ClearDisplay()
 	display.WaitUntilIdle()
-	log.Println("[ClearDisplay] Waiting for 3 seconds")
+	log.Println("internal.dsp.ClearDisplay: Waiting for 3 seconds")
 	time.Sleep(3 * time.Second)
 
 }
@@ -99,9 +99,11 @@ func FontExamples(display *epd4in2.Device) {
 func  (content *Content) DisplayContent(display *epd4in2.Device) {
 
 
-	log.Println("internal.dsp.DisplayContent: The money!")
+	log.Println("internal.dsp.DisplayContent: sleep for a bit!")
+
 	black := color.RGBA{1, 1, 1, 255}
 	time.Sleep(3 * time.Second)
+
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "HH", black, tinyfont.NO_ROTATION)
 	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50,  "Gateway Heartbeat: "+content.gatewayMainLoopHeartbeatStatus, black, tinyfont.NO_ROTATION)
 

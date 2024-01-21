@@ -124,7 +124,8 @@ func main() {
 		// or it gives up
 		//
 		// DEVTODO - it works as a go routine but I don't want it to run as a go routine
-		go radio.LoraRxTxUntilReceive()
+		// go radio.LoraRxTxUntilReceive()
+		radio.LoraRxTxUntilReceive()
 
 		//
 		// Consume any messages received
@@ -145,11 +146,14 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+//DEVTODO - I don't think I need a channel pointer here when I have all 
+//          working I should change this to see if it still works
 func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 	var msgBatch string
 
 	for len(*rxQ) > 0 {
 
+		//A batch look like: "msg1|msg2|msg3|..."
 		msgBatch = <-*rxQ
 		log.Printf("dsp.com.rxQConsumer: Message batch: [%v]", msgBatch)
 
@@ -158,7 +162,7 @@ func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 			log.Printf("dsp.com.rxQConsumer: Message: [%v]", msg)
 
 			//
-			// Each message is a a key:values pair
+			// Each message is a key:values pair
 			//
 			parts := strings.Split(msg, ":")
 			var msgKey string
@@ -174,7 +178,10 @@ func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 			//
 			// Send stats to display over UART
 			//
-			sendStatus(mb, msgKey, msgValue)
+			// if msgKey == string(umsg.MSG_STATUS) {  DEVTODO - what up with this?
+			if msgKey == string(iot.GatewayMainLoopHeartbeat) {
+				publishStatusToUart(mb, msgKey, msgValue)
+			}
 
 		}
 
@@ -182,7 +189,7 @@ func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 }
 
 // Send Status
-func sendStatus(mb *umsg.MsgBroker, msgKey string, msgValue string) {
+func publishStatusToUart(mb *umsg.MsgBroker, msgKey string, msgValue string) {
 
 	var statusMsg umsg.StatusMsg
 	statusMsg.Kind = umsg.MSG_STATUS
@@ -191,6 +198,6 @@ func sendStatus(mb *umsg.MsgBroker, msgKey string, msgValue string) {
 	statusMsg.Value = msgValue
 
 	log.Printf("dsp.com.sendStatus: Publish on message bus, Status key: %s, value: %s", msgKey, msgValue)
-	mb.PublishStatus(statusMsg)
+	mb.PublishStatusToUart(statusMsg)
 
 }
