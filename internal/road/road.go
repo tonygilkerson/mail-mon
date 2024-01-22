@@ -176,12 +176,14 @@ func (radio *Radio) LoraRxTxUntilReceive() {
 	for i := 0; i < 3; i++ {
 		log.Println("road.LoraRxTxUntilReceive: call LoraRxTx()")
 		if radio.LoraRxTx() {
+			log.Println("road.LoraRxTxUntilReceive:                                              get out!")
 			break
 		}
 
 		runtime.Gosched()
 		time.Sleep(time.Second * 5)
 	}
+	log.Println("road.LoraRxTxUntilReceive:                                              get out!")
 
 }
 

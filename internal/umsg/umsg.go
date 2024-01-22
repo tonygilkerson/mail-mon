@@ -39,7 +39,7 @@ type FooMsg struct {
 }
 
 // ^Status|some-sender|somekey|somevalue~
-// ^Status|test|GatewayMainLoopHeartbeat|1234~
+// ^Status|test|GatewayHeartbeat|1234~
 type StatusMsg struct {
 	Kind     MsgType
 	SenderID string
@@ -180,10 +180,6 @@ func (mb *MsgBroker) writeMsgToUart(msg string) {
 		mb.uartOut.Write([]byte(msg))
 		// Print a new line between messages for readability in the serial monitor
 		mb.uartOut.Write([]byte("\n"))
-
-		// Insert a small pause here to give the consumer a change to read the message
-		// this in an effort to not fill up the buffer and lose data
-		time.Sleep(time.Millisecond * 50)
 	}
 
 }

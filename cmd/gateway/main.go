@@ -5,6 +5,7 @@ import (
 	"log"
 	"machine"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -67,11 +68,11 @@ func main() {
 	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
 	// Create status map
-	status := make(map[string]string)
+	statusMap := make(map[string]string)
 
 	// Launch go routines
 	log.Println("Launch go routines")
-	go writeToSerial(&rxQ, uart, status)
+	go writeToSerial(&rxQ, uart, statusMap)
 	go readFromSerial(&txQ, uart)
 	go radio.LoraRxTxRunner()
 
@@ -85,12 +86,12 @@ func main() {
 
 		log.Printf("------------------mbx-iot gateway MainLoopHeartbeat-------------------- %v", count)
 		count += 1
-		updateStatus(iot.GatewayMainLoopHeartbeat, status)
+		updateStatus(iot.GatewayHeartbeat, statusMap, strconv.Itoa(count))
 
 		//
 		// Send out status on each heartbeat
 		//
-		for k, v := range status {
+		for k, v := range statusMap {
 			txQ <- fmt.Sprintf("%s:%s", k, v)
 		}
 
@@ -106,18 +107,19 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-func writeToSerial(rxQ *chan string, uart *machine.UART, status map[string]string) {
+func writeToSerial(rxQ *chan string, uart *machine.UART, statusMap map[string]string) {
 	var msgBatch string
+	var count int
 
 	for msgBatch = range *rxQ {
-
+		count += 1
 		log.Printf("gateway.writeToSerial: Message batch: [%v]", msgBatch)
 
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
 			log.Printf("gateway.writeToSerial: Write to serial: [%v]", msg)
 			uart.Write([]byte(msg))
-			updateStatus(msg, status)
+			updateStatus(msg, statusMap, strconv.Itoa(count))
 			time.Sleep(time.Millisecond * 50) // Mark the End of a message
 		}
 
@@ -162,11 +164,7 @@ func readFromSerial(txQ *chan string, uart *machine.UART) {
 
 }
 
-func updateStatus(msg string, status map[string]string) {
-	// Get now as a string
-	t := time.Now()
-	ts := fmt.Sprintf(t.Format("20060102150405"))
-
+func updateStatus(msg string, statusMap map[string]string, statusDefault string ) {
 	//
 	// Each message is a a key:values pair
 	//
@@ -186,12 +184,12 @@ func updateStatus(msg string, status map[string]string) {
 	switch {
 
 	case msgKey == string(iot.MbxTemperature):
-		status[msgKey] = msgValue
+		statusMap[msgKey] = msgValue
 		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, msgValue)
 		
 	default:
-		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, ts)
-		status[msgKey] = ts
+		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, statusDefault)
+		statusMap[msgKey] = statusDefault
 	}
 
 }

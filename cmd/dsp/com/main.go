@@ -101,6 +101,8 @@ func main() {
 	log.Println("Setup LORA")
 	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
 
+	// Routine to send and receive
+	go radio.LoraRxTxRunner()
 
 	//
 	// Main loop
@@ -125,7 +127,7 @@ func main() {
 		//
 		// DEVTODO - it works as a go routine but I don't want it to run as a go routine
 		// go radio.LoraRxTxUntilReceive()
-		radio.LoraRxTxUntilReceive()
+		// radio.LoraRxTxUntilReceive()
 
 		//
 		// Consume any messages received
@@ -179,9 +181,15 @@ func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 			// Send stats to display over UART
 			//
 			// if msgKey == string(umsg.MSG_STATUS) {  DEVTODO - what up with this?
-			if msgKey == string(iot.GatewayMainLoopHeartbeat) {
+			if msgKey == string(iot.GatewayHeartbeat) || 
+			   msgKey == "test" {
 				publishStatusToUart(mb, msgKey, msgValue)
 			}
+
+			// Insert a small pause here to give the consumer a change to read the message
+			// this in an effort to not fill up the buffer and lose data
+			runtime.Gosched()
+			time.Sleep(time.Millisecond * 100)
 
 		}
 

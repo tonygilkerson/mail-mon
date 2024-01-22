@@ -195,9 +195,9 @@ func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content
 		//DEVTODO make this more general
 		//        maybe this should be in a different function
 		switch msg.Key {
-		case iot.GatewayMainLoopHeartbeat:
-			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayMainLoopHeartbeatStatus()")
-			content.SetGatewayMainLoopHeartbeatStatus(msg.Value)
+		case iot.GatewayHeartbeat:
+			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayHeartbeatStatus()")
+			content.SetGatewayHeartbeatStatus(msg.Value)
 		default:
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: Not interested in this content: %v", msg)
 		}

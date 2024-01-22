@@ -14,5 +14,5 @@ const (
 
 	DspMainLoopHeartbeat = "DspMainLoopHeartbeat"
 
-	GatewayMainLoopHeartbeat = "GatewayMainLoopHeartbeat"
+	GatewayHeartbeat = "GatewayHeartbeat"
 )

@@ -19,7 +19,7 @@ import (
 type Content struct {
 	isDirty bool
 	name string
-	gatewayMainLoopHeartbeatStatus string
+	gatewayHeartbeatStatus string
 }
 
 //
@@ -30,17 +30,17 @@ func NewContent() Content {
 	content := Content{
 		isDirty: true,
 		name: "Mailbox IOT",
-		gatewayMainLoopHeartbeatStatus: "initial",
+		gatewayHeartbeatStatus: "initial",
 	}
 
 	return content
 }
 
 
-func (content *Content) SetGatewayMainLoopHeartbeatStatus(s string){
-	if s != content.gatewayMainLoopHeartbeatStatus {
+func (content *Content) SetGatewayHeartbeatStatus(s string){
+	if s != content.gatewayHeartbeatStatus {
 		content.isDirty = true
-		content.gatewayMainLoopHeartbeatStatus = s
+		content.gatewayHeartbeatStatus = s
 	}
 }
 
@@ -105,7 +105,7 @@ func  (content *Content) DisplayContent(display *epd4in2.Device) {
 	time.Sleep(3 * time.Second)
 
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "HH", black, tinyfont.NO_ROTATION)
-	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50,  "Gateway Heartbeat: "+content.gatewayMainLoopHeartbeatStatus, black, tinyfont.NO_ROTATION)
+	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50,  "Gateway Heartbeat: "+content.gatewayHeartbeatStatus, black, tinyfont.NO_ROTATION)
 
 	log.Println("internal.dsp.DisplayContent: Display()")
 	display.Display()
