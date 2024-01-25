@@ -11,6 +11,7 @@ import (
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
+	"github.com/tonygilkerson/mbx-iot/internal/umsg"
 	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 	"tinygo.org/x/drivers/sx127x"
 )
@@ -118,9 +119,8 @@ func writeToSerial(rxQ *chan string, uart *machine.UART, statusMap map[string]st
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
 			log.Printf("gateway.writeToSerial: Write to serial: [%v]", msg)
-			uart.Write([]byte(msg))
+			uart.Write(append([]byte(msg), umsg.TOKEN_PIPE))
 			updateStatus(msg, statusMap, strconv.Itoa(count))
-			time.Sleep(time.Millisecond * 50) // Mark the End of a message
 		}
 
 		runtime.Gosched()

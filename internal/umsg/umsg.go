@@ -23,6 +23,7 @@ type MsgType string
 const (
 	TOKEN_HAT         byte   = 94  // ^
 	TOKEN_ABOUT       byte   = 126 // ~
+	TOKEN_PIPE        byte   = 124 // |
 	LOOKBACK_SENDERID string = "Loopback"
 )
 
