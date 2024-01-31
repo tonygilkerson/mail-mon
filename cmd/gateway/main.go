@@ -17,8 +17,7 @@ import (
 )
 
 const (
-	HEARTBEAT_DURATION_SECONDS        = 8
-	TXRX_LOOP_TICKER_DURATION_SECONDS = 6
+	HEARTBEAT_DURATION_SECONDS        = 10
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -66,7 +65,7 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 5_000, 10_000, 1, road.TxRx)
 
 	// Create status map
 	statusMap := make(map[string]string)
@@ -87,14 +86,10 @@ func main() {
 
 		log.Printf("------------------mbx-iot gateway MainLoopHeartbeat-------------------- %v", count)
 		count += 1
-		updateStatus(iot.GatewayHeartbeat, statusMap, strconv.Itoa(count))
+		statusMap[iot.GatewayHeartbeat] = strconv.Itoa(count)
 
-		//
 		// Send out status on each heartbeat
-		//
-		for k, v := range statusMap {
-			txQ <- fmt.Sprintf("%s:%s", k, v)
-		}
+		publishStatus(statusMap, txQ)
 
 		dsp.RunLight(led, 2)
 		runtime.Gosched()
@@ -108,6 +103,15 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
+func publishStatus(statusMap map[string]string, txQ chan string) {
+
+	// DEVTODO - Add a filter and only publish certain status
+	for k, v := range statusMap {
+		txQ <- fmt.Sprintf("%s:%s", k, v)
+	}
+	
+}
+
 func writeToSerial(rxQ *chan string, uart *machine.UART, statusMap map[string]string) {
 	var msgBatch string
 	var count int
@@ -116,11 +120,47 @@ func writeToSerial(rxQ *chan string, uart *machine.UART, statusMap map[string]st
 		count += 1
 		log.Printf("gateway.writeToSerial: Message batch: [%v]", msgBatch)
 
+		//
+		// Split the batch of message into individual message and save the 
+		// status for the ones we are interested in
+		//
 		messages := road.SplitMessageBatch(msgBatch)
 		for _, msg := range messages {
 			log.Printf("gateway.writeToSerial: Write to serial: [%v]", msg)
 			uart.Write(append([]byte(msg), umsg.TOKEN_PIPE))
-			updateStatus(msg, statusMap, strconv.Itoa(count))
+
+				//
+				// Each message is a a key:values pair
+				//
+				parts := strings.Split(msg, ":")
+				var msgKey string
+				var msgValue string
+
+				if len(parts) > 0 {
+					msgKey = parts[0]
+				}
+				if len(parts) > 1 {
+					msgValue = parts[1]
+				}
+
+			switch  {
+			case msgKey == iot.MbxDoorOpened:
+				c,_ := strconv.Atoi(statusMap[iot.MbxDoorOpened])
+				c += 1
+				log.Printf("gateway.writeToSerial: increment MbxDoorOpened count to [%v]", c)
+				statusMap[msgKey] = strconv.Itoa(c)
+
+			case msgKey == iot.MbxMuleAlarm:
+				c,_ := strconv.Atoi(statusMap[iot.MbxMuleAlarm])
+				c += 1
+				log.Printf("gateway.writeToSerial: increment MbxMuleAlarm count to [%v]", c)
+				statusMap[msgKey] = strconv.Itoa(c)
+			
+			case msgKey == iot.MbxTemperature:
+				log.Printf("gateway.writeToSerial: set MbxTemperature status to [%v]", msgValue)
+				statusMap[msgKey] = msgValue
+			}
+			
 		}
 
 		runtime.Gosched()
@@ -164,32 +204,3 @@ func readFromSerial(txQ *chan string, uart *machine.UART) {
 
 }
 
-func updateStatus(msg string, statusMap map[string]string, statusDefault string ) {
-	//
-	// Each message is a a key:values pair
-	//
-	parts := strings.Split(msg, ":")
-	var msgKey string
-	var msgValue string
-
-	if len(parts) > 0 {
-		msgKey = parts[0]
-	}
-	if len(parts) > 1 {
-		msgValue = parts[1]
-	}
-
-
-	// Update status for given
-	switch {
-
-	case msgKey == string(iot.MbxTemperature):
-		statusMap[msgKey] = msgValue
-		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, msgValue)
-		
-	default:
-		log.Printf("gateway.updateStatus: update %s with status: %s\n", msgKey, statusDefault)
-		statusMap[msgKey] = statusDefault
-	}
-
-}

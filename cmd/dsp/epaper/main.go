@@ -145,19 +145,7 @@ func main() {
 			log.Printf("dsp.com.main:  Boom! heartbeat timeout\n")
 		}
 
-		log.Println("dsp.com.main: Read all old messages on the buffer")
-		mb.UartReader()
-		consumeAllStatusFromChToUpdateContent(statusCh, &content)
-				
-		// DEVTODO - not sure I want to do it this way
-		// log.Println("dsp.com.main: Receive new messages that might come in in the next 30 seconds")
-		// tStart := time.Now()
-		// for time.Since(tStart) < 10*time.Second {
-		// 	mb.UartReader()
-		// }
-
-		log.Println("dsp.com.main: Wait for new messages...")
-		time.Sleep(10 * time.Second)
+		log.Println("dsp.com.main: Read all messages on the buffer")
 		mb.UartReader()
 		consumeAllStatusFromChToUpdateContent(statusCh, &content)
 		
@@ -196,8 +184,11 @@ func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content
 		//        maybe this should be in a different function
 		switch msg.Key {
 		case iot.GatewayHeartbeat:
-			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayHeartbeatStatus()")
-			content.SetGatewayHeartbeatStatus(msg.Value)
+			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayHeartbeat()")
+			content.SetGatewayHeartbeat(msg.Value)
+		case iot.MbxDoorOpened:
+			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetMbxDoorOpened()")
+			content.SetMbxDoorOpened(msg.Value)
 		default:
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: Not interested in this content: %v", msg)
 		}

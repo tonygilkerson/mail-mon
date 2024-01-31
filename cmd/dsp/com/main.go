@@ -19,12 +19,11 @@ import (
 )
 
 const (
-	SENDER_ID = "dsp.com"
-	HEARTBEAT_DURATION_SECONDS        = 15
+	SENDER_ID                  = "dsp.com"
+	HEARTBEAT_DURATION_SECONDS = 15
 
-	// DEVTODO - Delete this when LoraRxTxRunner is gone
-	//           I need to update the gatway to remove LoraRxTxRunner first
-	TXRX_LOOP_TICKER_DURATION_SECONDS = 10      // I want this to be large
+	// DEVTODO - I want this to be large
+	TXRX_LOOP_TICKER_DURATION_SECONDS = 10
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -65,7 +64,6 @@ func main() {
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
-
 
 	/////////////////////////////////////////////////////////////////////////////
 	// Broker
@@ -122,14 +120,6 @@ func main() {
 		dsp.RunLight(led, 2)
 
 		//
-		// The LoraRxTxUntilReceive will run until something is received 
-		// or it gives up
-		//
-		// DEVTODO - it works as a go routine but I don't want it to run as a go routine
-		// go radio.LoraRxTxUntilReceive()
-		// radio.LoraRxTxUntilReceive()
-
-		//
 		// Consume any messages received
 		//
 		rxQConsumer(&rxQ, &mb)
@@ -148,8 +138,9 @@ func main() {
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-//DEVTODO - I don't think I need a channel pointer here when I have all 
-//          working I should change this to see if it still works
+// DEVTODO - I don't think I need a channel pointer here when I have all
+//
+//	working I should change this to see if it still works
 func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 	var msgBatch string
 
@@ -181,8 +172,7 @@ func rxQConsumer(rxQ *chan string, mb *umsg.MsgBroker) {
 			// Send stats to display over UART
 			//
 			// if msgKey == string(umsg.MSG_STATUS) {  DEVTODO - what up with this?
-			if msgKey == string(iot.GatewayHeartbeat) || 
-			   msgKey == "test" {
+			if msgKey == string(iot.GatewayHeartbeat) || msgKey == string(iot.MbxDoorOpened) {
 				publishStatusToUart(mb, msgKey, msgValue)
 			}
 

@@ -125,22 +125,12 @@ func (mb *MsgBroker) Configure() {
 
 	// Output UART
 	if mb.uartOut != nil {
-
 		mb.uartOut.Configure(machine.UARTConfig{TX: mb.uartOutTxPin, RX: mb.uartOutRxPin})
-
 	}
 
 	// Input UART
 	if mb.uartIn != nil {
-
 		mb.uartIn.Configure(machine.UARTConfig{TX: mb.uartInTxPin, RX: mb.uartInRxPin})
-
-		// DEVTODO see if it is possible/better to not automatically start this routine here
-		//         but instead drive it from the client
-		// Launch the uartServer to watch the input UART
-		// go mb.uartServer()
-		// DEVTODO - Delete the above soon if I get it working as an on-demand thing from the client
-
 	}
 
 }
@@ -209,72 +199,7 @@ func (mb *MsgBroker) dispatchMsgToChannel(msgParts []string) {
 
 }
 
-/*
-uartServer will monitor the input uart for messages and dispatch each message
-to a specific channel based on the message type
-*/
-// func (mb *MsgBroker) uartServer() {
-
-// 	log.Println("umsg.uartServer: Start uartServer loop...")
-// 	for {
-// 		//
-// 		// Loop delay to ensure we dont hog the cpu
-// 		//
-// 		runtime.Gosched()
-// 		time.Sleep(time.Millisecond * 10)
-
-// 		//
-// 		// Peak to see if we have data in the buffer
-// 		//
-// 		if mb.uartIn.Buffered() == 0 {
-// 			log.Println("umsg.uartServer: no data in uart buffer, try again.")
-// 			continue
-// 		}
-
-// 		//
-// 		// Read a message from the buffer
-// 		//
-// 		msg := mb.readMsg()
-// 		if len(msg) == 0 {
-// 			log.Println("umsg.uartServer: empty message, try again.")
-// 			continue
-// 		}
-
-// 		msgParts := strings.Split(string(msg), "|")
-
-// 		//
-// 		// Make sure the message has values, message look like:
-// 		//      kind|senderId|field1|field2...
-// 		//
-// 		if len(msgParts) < 2 {
-// 			log.Println("umsg.uartServer: message had no values, try again. msg: %s", msg)
-// 			continue
-// 		}
-
-// 		// Get the message senderID, it is assumed that index 1 is sender id
-// 		msgSenderID := msgParts[1]
-
-// 		// Only dispatch messages from other senders
-// 		// This can happen when a message makes it way around the loop and arrives back at the original sender
-// 		if msgSenderID != mb.senderID {
-
-// 			mb.dispatchMsgToChannel(msgParts)
-
-// 			// Forward all messages with the exception of the loopback sender to prevent endless loop
-// 			// The loopback is mainly used for testing. It allows you point uartOut->UartIn on the same pico
-// 			if mb.uartOut != nil && msgSenderID != LOOKBACK_SENDERID {
-// 				// rewrap the message to start with ^ and end with ~
-// 				msg = string(TOKEN_HAT) + msg + string(TOKEN_ABOUT)
-// 				log.Printf("umsg.uartServer: send message to output uart: %v\n", msg)
-// 				mb.uartOut.Write([]byte(msg))
-// 			}
-
-// 		}
-
-// 	}
-// }
-
-// DEVTODO - this is a rewrite of uartServer above. Delete the above when things are working
+//
 // UartReader will read all the messages in the buffer. It will keep reading as long as there is data in the buffer
 //
 //	the function will return when there is no more data in the buffer

@@ -169,23 +169,7 @@ func (radio *Radio) LoraRxTxRunner() {
 
 }
 
-func (radio *Radio) LoraRxTxUntilReceive() {
 
-	log.Println("road.LoraRxTxUntilReceive: tx loop...")
-
-	for i := 0; i < 3; i++ {
-		log.Println("road.LoraRxTxUntilReceive: call LoraRxTx()")
-		if radio.LoraRxTx() {
-			log.Println("road.LoraRxTxUntilReceive:                                              get out!")
-			break
-		}
-
-		runtime.Gosched()
-		time.Sleep(time.Second * 5)
-	}
-	log.Println("road.LoraRxTxUntilReceive:                                              get out!")
-
-}
 
 func (radio *Radio) LoraRxTx() (rxData bool) {
 	txQ := radio.TxQ

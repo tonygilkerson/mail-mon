@@ -1,6 +1,7 @@
 package dsp
 
 import (
+	"fmt"
 	"image/color"
 	"log"
 	"machine"
@@ -8,39 +9,41 @@ import (
 
 	"tinygo.org/x/drivers/waveshare-epd/epd4in2"
 	"tinygo.org/x/tinyfont"
-	"tinygo.org/x/tinyfont/gophers"
 	"tinygo.org/x/tinyfont/freemono"
-
+	"tinygo.org/x/tinyfont/gophers"
 )
 
-//
 // Content for the Display
-//
 type Content struct {
-	isDirty bool
-	name string
-	gatewayHeartbeatStatus string
+	isDirty          bool
+	name             string
+	gatewayHeartbeat string
+	mbxDoorOpened    string
 }
 
-//
 // NewContent
-//
 func NewContent() Content {
 
 	content := Content{
-		isDirty: true,
-		name: "Mailbox IOT",
-		gatewayHeartbeatStatus: "initial",
+		isDirty:          true,
+		name:             "Mailbox IOT",
+		gatewayHeartbeat: "initial",
+		mbxDoorOpened:    "initial",
 	}
 
 	return content
 }
 
-
-func (content *Content) SetGatewayHeartbeatStatus(s string){
-	if s != content.gatewayHeartbeatStatus {
+func (content *Content) SetGatewayHeartbeat(status string) {
+	if status != content.gatewayHeartbeat {
 		content.isDirty = true
-		content.gatewayHeartbeatStatus = s
+		content.gatewayHeartbeat = status
+	}
+}
+func (content *Content) SetMbxDoorOpened(status string) {
+	if status != content.mbxDoorOpened {
+		content.isDirty = true
+		content.mbxDoorOpened = status
 	}
 }
 
@@ -58,7 +61,6 @@ func RunLight(led machine.Pin, count int) {
 
 }
 
-
 func ClearDisplay(display *epd4in2.Device) {
 
 	display.ClearBuffer()
@@ -74,18 +76,15 @@ func FontExamples(display *epd4in2.Device) {
 	black := color.RGBA{1, 1, 1, 255}
 	// white := color.RGBA{0, 0, 0, 255}
 
-
 	time.Sleep(3 * time.Second)
-
 
 	// tinyfont.WriteLineRotated(&display, &freemono.Bold9pt7b, 85, 26, "World!", white, tinyfont.ROTATION_180)
 	// tinyfont.WriteLineRotated(&display, &freemono.Bold9pt7b, 55, 60, "@tinyGolang", black, tinyfont.ROTATION_90)
 
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50, "ABCDEFG\nHIJKLMN\nOPQRSTU", black, tinyfont.NO_ROTATION)
-	tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "ABCDEFG\nHIJKLMN\nOPQRSTU\nHH", black, tinyfont.NO_ROTATION)
+	tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50, "ABCDEFG\nHIJKLMN\nOPQRSTU\nHH", black, tinyfont.NO_ROTATION)
 
 	// tinyfont.WriteLineColorsRotated(&display, &freemono.Bold9pt7b, 45, 180, "tinyfont", []color.RGBA{white, black}, tinyfont.ROTATION_270)
-
 
 	log.Println("internal.dsp.FontExamples: Display()")
 	display.Display()
@@ -96,16 +95,16 @@ func FontExamples(display *epd4in2.Device) {
 
 }
 
-func  (content *Content) DisplayContent(display *epd4in2.Device) {
-
+func (content *Content) DisplayContent(display *epd4in2.Device) {
 
 	log.Println("internal.dsp.DisplayContent: sleep for a bit!")
 
 	black := color.RGBA{1, 1, 1, 255}
 	time.Sleep(3 * time.Second)
 
+	stuff := fmt.Sprintf("Gateway Heartbeat: %s\nMbx Door: %s", content.gatewayHeartbeat, content.mbxDoorOpened)
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "HH", black, tinyfont.NO_ROTATION)
-	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50,  "Gateway Heartbeat: "+content.gatewayHeartbeatStatus, black, tinyfont.NO_ROTATION)
+	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50, stuff, black, tinyfont.NO_ROTATION)
 
 	log.Println("internal.dsp.DisplayContent: Display()")
 	display.Display()
