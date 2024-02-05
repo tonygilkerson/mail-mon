@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"tinygo.org/x/drivers/waveshare-epd/epd4in2"
+	"tinygo.org/x/drivers/ws2812"
 	"tinygo.org/x/tinyfont"
 	"tinygo.org/x/tinyfont/freemono"
 	"tinygo.org/x/tinyfont/gophers"
@@ -15,36 +16,71 @@ import (
 
 // Content for the Display
 type Content struct {
-	isDirty          bool
-	name             string
-	gatewayHeartbeat string
-	mbxDoorOpened    string
+	name      string
+	isDirty   bool
+	lastClean time.Time
+	age       string
+
+	gatewayHeartbeatStatus string
+	mbxDoorOpenedStatus    string
+	youGotMailIndicator    string
 }
 
 // NewContent
-func NewContent() Content {
+func NewContent() *Content {
 
 	content := Content{
-		isDirty:          true,
-		name:             "Mailbox IOT",
-		gatewayHeartbeat: "initial",
-		mbxDoorOpened:    "initial",
+		isDirty:                false,
+		lastClean:              time.Now(),
+		age:                    "0h",
+		name:                   "Mailbox IOT",
+		gatewayHeartbeatStatus: "initial",
+		mbxDoorOpenedStatus:    "initial",
+		youGotMailIndicator:    "initial",
 	}
 
-	return content
+	return &content
 }
 
-func (content *Content) SetGatewayHeartbeat(status string) {
-	if status != content.gatewayHeartbeat {
-		content.isDirty = true
-		content.gatewayHeartbeat = status
+func (content *Content) SetGatewayHeartbeatStatus(status string) {
+	if status != content.gatewayHeartbeatStatus {
+		// Don't set is dirty just for a heartbeat
+		content.gatewayHeartbeatStatus = status
 	}
 }
-func (content *Content) SetMbxDoorOpened(status string) {
-	if status != content.mbxDoorOpened {
+func (content *Content) SetMbxDoorOpenedStatus(status string) {
+
+	if status != content.mbxDoorOpenedStatus {
 		content.isDirty = true
-		content.mbxDoorOpened = status
+		content.mbxDoorOpenedStatus = status
+		content.youGotMailIndicator = "You got mail!"
 	}
+}
+
+func (content *Content) SetIsDirty(d bool) {
+
+	log.Printf("internal.dsp.SetIsDirty: %v ", d)
+	content.isDirty = d
+	content.lastClean = time.Now() // reset
+	content.UpdateAge()
+
+}
+
+
+func (content *Content) UpdateAge() {
+
+	duration := time.Since(content.lastClean)
+  age := fmt.Sprintf("%1.1fh", duration.Hours())
+	content.age = age
+
+}
+
+func (content *Content) IsDirty() bool {
+	return content.isDirty
+}
+
+func (content *Content) SetYouGotMailIndicator(i string) {
+	content.youGotMailIndicator = i
 }
 
 func RunLight(led machine.Pin, count int) {
@@ -102,7 +138,11 @@ func (content *Content) DisplayContent(display *epd4in2.Device) {
 	black := color.RGBA{1, 1, 1, 255}
 	time.Sleep(3 * time.Second)
 
-	stuff := fmt.Sprintf("Gateway Heartbeat: %s\nMbx Door: %s", content.gatewayHeartbeat, content.mbxDoorOpened)
+	stuff := fmt.Sprintf("Gateway HB: %s\n", content.gatewayHeartbeatStatus)
+	stuff += fmt.Sprintf("Age: %s\n", content.age)
+	stuff += fmt.Sprintf("-------------------------\n\n")
+	stuff += fmt.Sprintf("Mbx: %s %s ", content.mbxDoorOpenedStatus, content.youGotMailIndicator)
+
 	// tinyfont.WriteLineRotated(display, &gophers.Regular58pt, 40, 50,  "HH", black, tinyfont.NO_ROTATION)
 	tinyfont.WriteLineRotated(display, &freemono.Bold9pt7b, 30, 50, stuff, black, tinyfont.NO_ROTATION)
 
@@ -113,4 +153,82 @@ func (content *Content) DisplayContent(display *epd4in2.Device) {
 	display.WaitUntilIdle()
 	log.Println("internal.dsp.DisplayContent: WaitUntilIdle() done.")
 
+}
+
+func NeoNightrider(neo machine.Pin) {
+
+	// Flash a strip of 8
+	ws := ws2812.New(neo)
+	leds := make([]color.RGBA, 8)
+	runStripRGB(leds, neo, &ws)
+
+}
+
+func NeoBlink(neo machine.Pin) {
+
+	// All on then off
+	ws := ws2812.New(neo)
+	leds := make([]color.RGBA, 8)
+
+	allLedsOn(leds, &ws, 10)
+	time.Sleep(100 * time.Millisecond)
+
+	allLedsOff(leds, &ws)
+	time.Sleep(10 * time.Millisecond)
+}
+
+func runStripRGB(leds []color.RGBA, neo machine.Pin, ws *ws2812.Device) {
+
+	for x := 0; x < 1; x++ {
+
+		// night rider right to left
+		for i := 0; i < len(leds); i++ {
+
+			leds[i] = color.RGBA{R: 255, G: 0, B: 0}
+			for j := i - 1; j >= 0; j-- {
+				leds[j] = color.RGBA{R: 0, G: 0, B: 0}
+			}
+			ws.WriteColors(leds[:])
+			time.Sleep(50 * time.Millisecond)
+
+		}
+
+		allLedsOff(leds, ws)
+		time.Sleep(10 * time.Millisecond)
+
+		// night rider left to right
+		for i := len(leds) - 1; i >= 0; i-- {
+
+			leds[i] = color.RGBA{R: 255, G: 0, B: 0}
+			for j := i + 1; j < len(leds); j++ {
+				leds[j] = color.RGBA{R: 0, G: 0, B: 0}
+			}
+			ws.WriteColors(leds[:])
+			time.Sleep(50 * time.Millisecond)
+
+		}
+
+		allLedsOff(leds, ws)
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	allLedsOff(leds, ws)
+}
+
+func allLedsOff(leds []color.RGBA, ws *ws2812.Device) {
+	off := color.RGBA{R: 0, G: 0, B: 0}
+	setAllLeds(leds, off)
+	ws.WriteColors(leds[:])
+}
+
+func allLedsOn(leds []color.RGBA, ws *ws2812.Device, intensity uint8) {
+	on := color.RGBA{R: intensity, G: intensity, B: intensity}
+	setAllLeds(leds, on)
+	ws.WriteColors(leds[:])
+}
+
+func setAllLeds(leds []color.RGBA, c color.RGBA) {
+	for i := 0; i < len(leds); i++ {
+		leds[i] = c
+	}
 }

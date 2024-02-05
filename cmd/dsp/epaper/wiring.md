@@ -1,7 +1,7 @@
 # Wiring
 
-| Pico Board Pin | Pico GPIO      | e-Paper Dsp | Buttons                           | Com Pico       |
-| -------------- | -------------- | ----------- | --------------------------------- | -------------- |
+| Pico Board Pin | Pico GPIO      | e-Paper Dsp | Buttons                           | Com Pico       |neo
+| -------------- | -------------- | ----------- | --------------------------------- | -------------- |----
 | 1              | GP0 (UART0 TX) |             |                                   | GP5 (UART1 RX) |
 | 2              | GP1 (UaRT0 RX) |             |                                   | GP4 (UART1 TX) |
 | 3              | GND            |             |                                   |                |
@@ -10,7 +10,7 @@
 | 6              | GP4            |             |                                   | GP1            |
 | 7              | GP5            |             |                                   | GP0            |
 | 8              | GND            |             |                                   |                |
-| 9              | GP6            |             |                                   |                |
+| 9              | GP6            |             |                                   |                | DIN
 | 10             | GP7            |             |                                   |                |
 | 11             | GP8            |             |                                   |                |
 | 12             | GP9            |             |                                   |                |
@@ -39,8 +39,8 @@
 | 35             | ACD_VREF       |             |                                   |                |
 | 36             | 3v3 (out)      | VIN         |                                   |                |
 | 37             | 3v3 (EN)       |             |                                   |                |
-| 38             | GND            | GND         |                                   |                |
-| 39             | 5v0 (VSYS)     |             |                                   |                |
+| 38             | GND            | GND         |                                   |                | GND
+| 39             | 5v0 (VSYS)     |             |                                   |                | 5v
 | 40             | 5v0 (VBUS)     |             |                                   |                |
 
 Not exposed as board pins

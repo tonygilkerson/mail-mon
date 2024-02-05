@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"machine"
+	"math"
 	"runtime"
 	"time"
 
@@ -13,8 +14,9 @@ import (
 )
 
 const (
-	SENDER_ID                  = "dsp.epaper"
-	HEARTBEAT_DURATION_SECONDS = 300
+	SENDER_ID = "dsp.epaper"
+	HEARTBEAT_DURATION_SECONDS = 60
+	HEARTBEAT_MOD = 15 // Update screen every 15 min to update age
 )
 
 var display epd4in2.Device
@@ -27,11 +29,12 @@ func main() {
 	var uartInTx machine.Pin = machine.GP0 // UART0
 	var uartInRx machine.Pin = machine.GP1 // UART0
 
-	var mbxDoorOpenedAckBtn machine.Pin = machine.GP2 // Acknoleges the fact that we got mail, make alerts turn off
+	var mbxDoorOpenedAckBtn machine.Pin = machine.GP2 // Acknowledges the fact that we got mail, make alerts turn off
 	var requestBtn machine.Pin = machine.GP3          // System request, will cycle the heart beat loop and refresh status
 
 	var uartOutTx machine.Pin = machine.GP4 // UART1
 	var uartOutRx machine.Pin = machine.GP5 // UART1
+	var neo machine.Pin = machine.GP6       // Neopixel DIN
 
 	var dc machine.Pin = machine.GP11   // pin15
 	var rst machine.Pin = machine.GP12  // pin16
@@ -41,6 +44,11 @@ func main() {
 	var din machine.Pin = machine.GP19  // pin25 machine.SPI0_SDO_PIN
 
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
+
+	//
+	// Neo Pixel
+	//
+	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	//
 	// Buttons
@@ -103,13 +111,13 @@ func main() {
 		fooCh,
 		statusCh,
 	)
-	log.Printf("dsp.com.main: configure message broker\n")
+	log.Printf("dsp.epaper.main: configure message broker\n")
 	mb.Configure()
 
 	//
 	// SPI
 	//
-	log.Println("dsp.com.main: Configure SPI...")
+	log.Println("dsp.epaper.main: Configure SPI...")
 	machine.SPI0.Configure(machine.SPIConfig{
 		Frequency: 8000000,
 		Mode:      0,
@@ -121,7 +129,7 @@ func main() {
 	//
 	// Display
 	//
-	log.Println("dsp.com.main: new epd4in2")
+	log.Println("dsp.epaper.main: new epd4in2")
 	display = epd4in2.New(machine.SPI0, cs, dc, rst, busy)
 	display.Configure(epd4in2.Config{})
 	content := dsp.NewContent()
@@ -132,31 +140,79 @@ func main() {
 
 	// Non-blocking ch read that will timeout... boom!
 	boom := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
+	var displayNeedsRefreshed bool = true
+	var isDirtyCount int
+	var count float64
 
 	for {
+		// Refresh age each cycle
+		content.UpdateAge()
+		count += 1
 
 		// Wait for button or timeout
-		log.Println("dsp.com.main: wait on a button to be pushed or a timeout")
+		log.Printf("dsp.epaper.main: wait on a button to be pushed or a timeout, IsDirty: %v", content.IsDirty() )
 
 		select {
+
 		case <-requestBtnCh:
-			log.Println("dsp.com.main: requestBtn Hit!!!!")
+			log.Println("dsp.epaper.main: requestBtn Hit!!!!")
+			dsp.NeoBlink(neo)
+			displayNeedsRefreshed = true
+
+		case <-mbxDoorOpenedAckBtnCh:
+			log.Println("dsp.epaper.main: mbxDoorOpenedAckBtn Hit!!!!")
+			content.SetIsDirty(false)
+			content.SetYouGotMailIndicator("waiting...")
+			displayNeedsRefreshed = true
+
 		case <-boom.C:
-			log.Printf("dsp.com.main:  Boom! heartbeat timeout\n")
+			log.Printf("dsp.epaper.main:  Boom! heartbeat timeout\n")
+			displayNeedsRefreshed = false
+
 		}
 
-		log.Println("dsp.com.main: Read all messages on the buffer")
+		//
+		// Check to see if content needs updated
+		//
+		log.Println("dsp.epaper.main: Read all messages on the buffer")
 		mb.UartReader()
-		consumeAllStatusFromChToUpdateContent(statusCh, &content)
+		consumeAllStatusFromChToUpdateContent(statusCh, content)
+
+		//
+		// Is the content dirty?
+		//
+		if content.IsDirty() {
+			// Get someone's attention
+			log.Println("dsp.epaper.main: Nightrider")
+			dsp.NeoNightrider(neo)
+			isDirtyCount += 1
+		} else {
+			isDirtyCount = 0
+		}
+
+		// Refresh the display the first time
+		if isDirtyCount == 1 {
+			log.Println("dsp.epaper.main: First isDirty")
+			displayNeedsRefreshed = true
+		}
+
+		if math.Mod(count, HEARTBEAT_MOD) == 0 {
+			displayNeedsRefreshed = true
+		}
 		
-		log.Println("dsp.com.main: DisplayContent()")
-		dsp.ClearDisplay(&display)
-		content.DisplayContent(&display)
-		
-		log.Println("dsp.com.main: Gosched()")
+		//
+		// Display Content
+		//
+		if displayNeedsRefreshed {
+			log.Println("dsp.epaper.main: DisplayContent()")
+			dsp.ClearDisplay(&display)
+			content.DisplayContent(&display)
+		}
+
+		log.Println("dsp.epaper.main: Gosched()")
 		runtime.Gosched()
 	}
-		
+
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -185,10 +241,10 @@ func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content
 		switch msg.Key {
 		case iot.GatewayHeartbeat:
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetGatewayHeartbeat()")
-			content.SetGatewayHeartbeat(msg.Value)
+			content.SetGatewayHeartbeatStatus(msg.Value)
 		case iot.MbxDoorOpened:
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: call SetMbxDoorOpened()")
-			content.SetMbxDoorOpened(msg.Value)
+			content.SetMbxDoorOpenedStatus(msg.Value)
 		default:
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: Not interested in this content: %v", msg)
 		}
