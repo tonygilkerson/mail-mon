@@ -10,7 +10,8 @@ const (
 	MbxChargerPowerSourceBad  = "ChargerPowerSourceBad"
 	MbxRoadMainLoopHeartbeat  = "RoadMainLoopHeartbeat"
 
-	DspMainLoopHeartbeat = "DspMainLoopHeartbeat"
+	DspMainLoopHeartbeat  = "DspMainLoopHeartbeat"
+	SoilMainLoopHeartbeat = "SoilMainLoopHeartbeat"
 
 	GatewayHeartbeat = "GatewayHeartbeat"
 )

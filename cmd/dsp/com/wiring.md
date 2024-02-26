@@ -3,7 +3,7 @@
 | Pico Board Pin | Pico GPIO      | Lora Breakout Board | NeoPixel Stick X 8 | E-paper Pico   |
 | -------------- | -------------- | ------------------- | ------------------ | -------------- |
 | 1              | GP0 (UART0 TX) |                     |                    | GP5 (UART1 RX) |
-| 2              | GP1 (UaRT0 RX) |                     |                    | GP4 (UART1 TX) |
+| 2              | GP1 (UART0 RX) |                     |                    | GP4 (UART1 TX) |
 | 3              | GND            |                     |                    |                |
 | 4              | GP2            |                     | DIN                |                |
 | 5              | GP3            |                     |                    |                |
