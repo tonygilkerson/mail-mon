@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/util"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
+	"github.com/tonygilkerson/mbx-iot/internal/soil"
 	"github.com/tonygilkerson/mbx-iot/pkg/iot"
+	
 	"tinygo.org/x/drivers/sx127x"
 )
 
@@ -17,6 +20,8 @@ func main() {
 	//
 	// Named PINs
 	//
+	var soilSDA machine.Pin = machine.GP12
+	var soilSCL machine.Pin = machine.GP13
 	var loraEn machine.Pin = machine.GP15
 	var loraSdi machine.Pin = machine.GP16 // machine.SPI0_SDI_PIN
 	var loraCs machine.Pin = machine.GP17
@@ -39,6 +44,15 @@ func main() {
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	//
+	// Configure I2C
+	//
+	i2c := machine.I2C0
+	err := i2c.Configure(machine.I2CConfig{ SDA: soilSDA, SCL: soilSCL,})
+	util.DoOrDie(err)
+
+	soil := soil.New(i2c)
 
 	//
 	// 	Setup Lora
@@ -70,6 +84,15 @@ func main() {
 		txQ <- iot.SoilMainLoopHeartbeat
 		dsp.RunLight(led, 2)
 
+		m, err := soil.ReadMoisture()
+		util.DoOrDie(err)
+		log.Printf("Moisture: %v\n", m)
+		time.Sleep(time.Second)
+
+		t, err := soil.ReadTemperature()
+		util.DoOrDie(err)
+		log.Printf("Temperature (F): %v\n", t)
+		time.Sleep(time.Second)
 
 		//
 		// Let someone else have a turn
