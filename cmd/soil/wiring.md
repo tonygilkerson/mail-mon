@@ -14,9 +14,9 @@
 | 10             | GP7            |                     |         |             |                   |
 | 11             | GP8            |                     |         |             |                   |
 | 12             | GP9            |                     |         |             |                   |
-| 13             | GND            |                     |         |             |                   |
-| 14             | GP10           |                     |         |             |                   |
-| 15             | GP11           |                     |         |             |                   |
+| 13             | GND            |                     |         |             | GND               |
+| 14             | GP10           |                     |         |             | CLK               |
+| 15             | GP11           |                     |         |             | DIO               |
 | 16             | GP12           |                     |         | SDA(White)  |                   |
 | 17             | GP13           |                     |         | SCL(Green)  |                   |
 | 18             | GND            |                     |         | GND (Black) |                   |
@@ -37,7 +37,7 @@
 | 33             | GND            |                     |         |             |                   |
 | 34             | GP28           |                     |         |             |                   |
 | 35             | ACD_VREF       |                     |         |             |                   |
-| 36             | 3v3 (out)      | VIN                 |         | VIN (Red)   |                   |
+| 36             | 3v3 (out)      | VIN                 |         | VIN (Red)   | VIN               |
 | 37             | 3v3 (EN)       |                     |         |             |                   |
 | 38             | GND            | GND                 |         |             |                   |
 | 39             | 5v0 (VSYS)     |                     | 5V      |             |                   |
