@@ -3,7 +3,7 @@ package main
 import (
 	"log"
 	"machine"
-	"math"
+	// "math"
 	"runtime"
 	"time"
 
@@ -23,6 +23,9 @@ func main() {
 	//
 	// Named PINs
 	//
+	var hBridgeEnable machine.Pin = machine.GP6
+	var hBridgeIn1 machine.Pin = machine.GP7
+	var hBridgeIn2 machine.Pin = machine.GP8
 	var tm1637CLK machine.Pin = machine.GP10
 	var tm1637DIO machine.Pin = machine.GP11
 	var soilSDA machine.Pin = machine.GP12
@@ -39,8 +42,8 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS        = 15
-		TXRX_LOOP_TICKER_DURATION_SECONDS = 10
+		HEARTBEAT_DURATION_SECONDS        = 3
+		TXRX_LOOP_TICKER_DURATION_SECONDS = 7
 	)
 
 	//
@@ -49,6 +52,14 @@ func main() {
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dsp.RunLight(led, 10)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	//
+	// Configure L293D
+	//
+	log.Println("Configure L293D Pins")
+	hBridgeEnable.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	hBridgeIn1.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	hBridgeIn2.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
 	//
 	// Configure 4 digit 7-segment display
@@ -82,6 +93,7 @@ func main() {
 	//
 	ticker := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
 	var count int
+	x :="off"
 
 	for range ticker.C {
 
@@ -104,12 +116,45 @@ func main() {
 		log.Printf("Temperature (F): %v\n", t)
 		time.Sleep(time.Second)
 
-		// alternate between displaying the moisture and temperature
-		if math.Mod(float64(count), 2) == 0 {
-			tm.DisplayNumber(int16(m))
-		} else {
-			tm.DisplayNumber(int16(t))
-		}
+		// // alternate between displaying the moisture and temperature
+		// if math.Mod(float64(count), 2) == 0 {
+		// 	tm.DisplayNumber(int16(m))
+		// } else {
+		// 	tm.DisplayNumber(int16(t))
+		// }
+
+		// temp for testing hbridge
+		switch x {
+    case "off":
+			x = "cw"
+			log.Println("0-off")
+			hBridgeEnable.Low()
+			hBridgeIn1.Low()
+			hBridgeIn2.Low()
+			tm.DisplayNumber(0)
+    case "cw":
+			x = "ccw"
+			log.Println("1-CW")
+			hBridgeEnable.High()
+			hBridgeIn1.High()
+			hBridgeIn2.Low()
+			tm.DisplayNumber(1)
+    case "ccw":
+			x = "off"
+			log.Println("2-CCW")
+			hBridgeEnable.High()
+			hBridgeIn1.Low()
+			hBridgeIn2.High()
+			tm.DisplayNumber(2)
+		default:
+			log.Println("8-default")
+			hBridgeEnable.Low()
+			hBridgeIn1.Low()
+			hBridgeIn2.Low()
+			tm.DisplayNumber(8)
+
+    }
+
 
 		//
 		// Let someone else have a turn
