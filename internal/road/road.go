@@ -89,19 +89,19 @@ func SetupLora(
 	radio.SDI = sdi
 
 	if rxTimeoutMs == 0 {
-		radio.RxTimeoutMs = 1000
+		radio.RxTimeoutMs = 5_000
 	} else {
 		radio.RxTimeoutMs = rxTimeoutMs
 	}
 
 	if txTimeoutMs == 0 {
-		radio.TxTimeoutMs = 1000
+		radio.TxTimeoutMs = 10_000
 	} else {
 		radio.TxTimeoutMs = txTimeoutMs
 	}
 
 	if txRxLoopTickerSec == 0 {
-		radio.TxRxLoopTickerSec = 10
+		radio.TxRxLoopTickerSec = 1
 	} else {
 		radio.TxRxLoopTickerSec = txRxLoopTickerSec
 	}
@@ -159,6 +159,7 @@ func SplitMessageBatch(msgBatch string) []string {
 }
 
 func (radio *Radio) LoraRxTxRunner() {
+	log.Println("road.LoraRxTxRunner: with TxRxLoopTickerSec: %v",radio.TxRxLoopTickerSec)
 
 	ticker := time.NewTicker(time.Second * time.Duration(radio.TxRxLoopTickerSec))
 	for range ticker.C {

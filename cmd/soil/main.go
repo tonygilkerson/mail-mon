@@ -42,8 +42,7 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS        = 3
-		TXRX_LOOP_TICKER_DURATION_SECONDS = 7
+		HEARTBEAT_DURATION_SECONDS  = 10
 	)
 
 	//
@@ -83,7 +82,7 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 0, 10_000, TXRX_LOOP_TICKER_DURATION_SECONDS, road.TxRx)
+	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 5_000, 10_000, 10, road.TxOnly)
 
 	// Routine to send and receive
 	go radio.LoraRxTxRunner()
