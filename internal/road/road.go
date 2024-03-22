@@ -159,7 +159,7 @@ func SplitMessageBatch(msgBatch string) []string {
 }
 
 func (radio *Radio) LoraRxTxRunner() {
-	log.Println("road.LoraRxTxRunner: with TxRxLoopTickerSec: %v",radio.TxRxLoopTickerSec)
+	log.Printf("road.LoraRxTxRunner: with TxRxLoopTickerSec: %v",radio.TxRxLoopTickerSec)
 
 	ticker := time.NewTicker(time.Second * time.Duration(radio.TxRxLoopTickerSec))
 	for range ticker.C {

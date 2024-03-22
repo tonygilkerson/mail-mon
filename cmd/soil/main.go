@@ -6,8 +6,12 @@ import (
 	// "math"
 	"runtime"
 	"time"
+	"math"
+	"strings"
+	"strconv"
 
 	tm1637mod "github.com/tonygilkerson/mbx-iot/hack/driver/tm1637"
+	"github.com/tonygilkerson/mbx-iot/internal/hbridge"
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
 	"github.com/tonygilkerson/mbx-iot/internal/soil"
@@ -42,7 +46,7 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS  = 10
+		HEARTBEAT_DURATION_SECONDS  = 30
 	)
 
 	//
@@ -56,9 +60,7 @@ func main() {
 	// Configure L293D
 	//
 	log.Println("Configure L293D Pins")
-	hBridgeEnable.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	hBridgeIn1.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	hBridgeIn2.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	hbridge := hbridge.New(hBridgeEnable,hBridgeIn1,hBridgeIn2)
 
 	//
 	// Configure 4 digit 7-segment display
@@ -82,7 +84,23 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, loraEn, loraRst, loraCs, loraDio0, loraDio1, loraSck, loraSdo, loraSdi, loraRadio, &txQ, &rxQ, 5_000, 10_000, 10, road.TxOnly)
+	radio := road.SetupLora(
+		*machine.SPI0, 
+		loraEn, 
+		loraRst, 
+		loraCs, 
+		loraDio0, 
+		loraDio1, 
+		loraSck, 
+		loraSdo, 
+		loraSdi, 
+		loraRadio, 
+		&txQ, 
+		&rxQ, 
+		10_000, 
+		10_000, 
+		31, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
+		road.TxOnly)
 
 	// Routine to send and receive
 	go radio.LoraRxTxRunner()
@@ -92,7 +110,6 @@ func main() {
 	//
 	ticker := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
 	var count int
-	x :="off"
 
 	for range ticker.C {
 
@@ -107,53 +124,40 @@ func main() {
 
 		m, err := soil.ReadMoisture()
 		util.DoOrDie(err)
-		log.Printf("Moisture: %v\n", m)
+		// log.Printf("Moisture: %v\n", m)
 		time.Sleep(time.Second)
 
 		t, err := soil.ReadTemperature()
 		util.DoOrDie(err)
-		log.Printf("Temperature (F): %v\n", t)
+		// log.Printf("Temperature (F): %v\n", t)
 		time.Sleep(time.Second)
 
-		// // alternate between displaying the moisture and temperature
+		// alternate between displaying the moisture and temperature
 		// if math.Mod(float64(count), 2) == 0 {
 		// 	tm.DisplayNumber(int16(m))
 		// } else {
 		// 	tm.DisplayNumber(int16(t))
 		// }
 
-		// temp for testing hbridge
-		switch x {
-    case "off":
-			x = "cw"
-			log.Println("0-off")
-			hBridgeEnable.Low()
-			hBridgeIn1.Low()
-			hBridgeIn2.Low()
-			tm.DisplayNumber(0)
-    case "cw":
-			x = "ccw"
-			log.Println("1-CW")
-			hBridgeEnable.High()
-			hBridgeIn1.High()
-			hBridgeIn2.Low()
-			tm.DisplayNumber(1)
-    case "ccw":
-			x = "off"
-			log.Println("2-CCW")
-			hBridgeEnable.High()
-			hBridgeIn1.Low()
-			hBridgeIn2.High()
-			tm.DisplayNumber(2)
-		default:
-			log.Println("8-default")
-			hBridgeEnable.Low()
-			hBridgeIn1.Low()
-			hBridgeIn2.Low()
-			tm.DisplayNumber(8)
+		switch math.Mod(float64(count), 3) {
+		case 0:
+			log.Printf("Moisture: %v\n", m)
+			tm.DisplayNumber(int16(m))
+		case 1:
+			log.Printf("Temperature (F): %v\n", t)
+			tm.DisplayNumber(int16(t))
+		case 2:
+			age := hbridge.GetTurnOnAge()
+			ageParts := strings.Split(age, ".")
+			h, _ := strconv.Atoi(ageParts[0])
+			m, _ := strconv.Atoi(ageParts[1])
+			log.Printf("Age: %v h: %v m: %v\n", age,h,m)
+			tm.DisplayClock(uint8(h),uint8(m),true)
+		}
 
-    }
-
+		// hbridge not used yet
+		hbridge.Off()
+		
 
 		//
 		// Let someone else have a turn

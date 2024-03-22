@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	HEARTBEAT_DURATION_SECONDS        = 10
+	HEARTBEAT_DURATION_SECONDS = 10
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -65,7 +65,23 @@ func main() {
 	rxQ := make(chan string, 250)
 
 	log.Println("Setup LORA")
-	radio := road.SetupLora(*machine.SPI0, en, rst, cs, dio0, dio1, sck, sdo, sdi, loraRadio, &txQ, &rxQ, 5_000, 10_000, 1, road.TxRx)
+	radio := road.SetupLora(
+		*machine.SPI0, 
+		en, 
+		rst, 
+		cs, 
+		dio0, 
+		dio1, 
+		sck, 
+		sdo, 
+		sdi, 
+		loraRadio, 
+		&txQ, 
+		&rxQ, 
+		5_000, 
+		10_000, 
+		1, 
+		road.TxRx)
 
 	// Create status map
 	statusMap := make(map[string]string)
@@ -130,7 +146,7 @@ func writeToSerial(rxQ *chan string, uart *machine.UART, statusMap map[string]st
 			uart.Write(append([]byte(msg), umsg.TOKEN_PIPE))
 
 				//
-				// Each message is a a key:values pair
+				// Each message is a key:values pair
 				//
 				parts := strings.Split(msg, ":")
 				var msgKey string
