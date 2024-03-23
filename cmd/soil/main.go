@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"fmt"
 	"machine"
 	// "math"
 	"runtime"
@@ -46,7 +47,7 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS  = 30
+		HEARTBEAT_DURATION_SECONDS  = 60
 	)
 
 	//
@@ -99,7 +100,7 @@ func main() {
 		&rxQ, 
 		10_000, 
 		10_000, 
-		31, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
+		61, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
 		road.TxOnly)
 
 	// Routine to send and receive
@@ -116,29 +117,23 @@ func main() {
 		log.Printf("------------------SoilMainLoopHeartbeat-------------------- %v", count)
 		count += 1
 
-		//
 		// Send Heartbeat to Tx queue
-		//
 		txQ <- iot.SoilMainLoopHeartbeat
 		dsp.RunLight(led, 2)
 
+		// Send Moisture reading  to Tx queue
 		m, err := soil.ReadMoisture()
 		util.DoOrDie(err)
-		// log.Printf("Moisture: %v\n", m)
+		txQ <- fmt.Sprintf("%v:%v",iot.SoilMoisture,m)
 		time.Sleep(time.Second)
-
+		
+		// Send Temperature(F) to Tx queue
 		t, err := soil.ReadTemperature()
 		util.DoOrDie(err)
-		// log.Printf("Temperature (F): %v\n", t)
+		txQ <- fmt.Sprintf("%v:%v",iot.SoilTemperature,t)
 		time.Sleep(time.Second)
 
-		// alternate between displaying the moisture and temperature
-		// if math.Mod(float64(count), 2) == 0 {
-		// 	tm.DisplayNumber(int16(m))
-		// } else {
-		// 	tm.DisplayNumber(int16(t))
-		// }
-
+		// Temp routine to display the stuff
 		switch math.Mod(float64(count), 3) {
 		case 0:
 			log.Printf("Moisture: %v\n", m)
@@ -164,4 +159,14 @@ func main() {
 		//
 		runtime.Gosched()
 	}
+}
+
+
+func sendTemperature(txQ *chan string) {
+
+	// F = ( (ReadTemperature /1000) * 9/5) + 32
+	fahrenheit := ((machine.ReadTemperature() / 1000) * 9 / 5) + 32
+	fmt.Printf("fahrenheit: %v\n", fahrenheit)
+	*txQ <- fmt.Sprintf("%v:%v",iot.SoilTemperature,fahrenheit)
+
 }
