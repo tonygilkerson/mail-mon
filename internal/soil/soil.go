@@ -1,4 +1,5 @@
 package soil
+
 // Note there is now a tinygo driver for this but it is on the dev branch
 //      I should check out this driver and if it works for me switch ASAP
 //      see: https://github.com/tinygo-org/drivers/blob/dev/examples/seesaw/main.go
@@ -18,13 +19,13 @@ package soil
 // https://github.com/adafruit/Adafruit_Seesaw/blob/master/Adafruit_seesaw.cpp
 // https://github.com/adafruit/Adafruit_BusIO/blob/master/Adafruit_I2CDevice.cpp
 //
-// The reading for soil moisture can range from about 300 to 1,000 at the extremes
-// In soil, you'll see this range from about 0 to 1023
+// The reading for soil moisture can range from about 300 to 1,000
+// In soil, you'll see this range from about 0 to 1023 at the extremes
 // Note that it does depend on how packed/loose the soil is!
 
 import (
+	
 	"time"
-
 	"tinygo.org/x/drivers"
 )
 
@@ -38,10 +39,10 @@ var readTemperatureCommand = []uint8{0x00, 0x04}
 
 // Device wraps an I2C connection to a Soil device.
 type Device struct {
-	bus            drivers.I2C
-	Address        uint16
-	moistureBuf    [2]uint8
-	temperatureBuf [4]uint8
+	bus                drivers.I2C
+	Address            uint16
+	moistureBuf        [2]uint8 // DEVTODO not sure I need this in the struct
+	temperatureBuf     [4]uint8 // DEVTODO not sure I need this in the struct
 }
 
 // New creates a new SeeSaw Soil Sensor connection. The I2C bus must already be configured.
@@ -65,13 +66,13 @@ func (d *Device) ReadMoisture() (moisture uint16, err error) {
 		time.Sleep(time.Duration(3000+retry*1000) * time.Microsecond)
 		err = d.bus.Tx(d.Address, nil, d.moistureBuf[:])
 		if err == nil {
-			return (uint16(d.moistureBuf[0]) << 8) | uint16(d.moistureBuf[1]), nil
+			moisture = (uint16(d.moistureBuf[0]) << 8) | uint16(d.moistureBuf[1])
+			return moisture, nil
 		}
 	}
 	return // returns last error
 
 }
-
 
 // Read Temperature in degrees Celsius
 func (d *Device) ReadTemperature() (temperature float64, err error) {
@@ -83,11 +84,12 @@ func (d *Device) ReadTemperature() (temperature float64, err error) {
 		time.Sleep(time.Duration(3000+retry*1000) * time.Microsecond)
 		err = d.bus.Tx(d.Address, nil, d.temperatureBuf[:])
 		if err == nil {
-			tempRaw := ( uint32(d.temperatureBuf[0]) << 24) | uint32(d.temperatureBuf[1]) << 16 | uint32(d.temperatureBuf[2]) << 8 | uint32(d.temperatureBuf[3])
+			tempRaw := (uint32(d.temperatureBuf[0]) << 24) | uint32(d.temperatureBuf[1])<<16 | uint32(d.temperatureBuf[2])<<8 | uint32(d.temperatureBuf[3])
 			// tempC := (float64(tempRaw) / 100_000)
-			tempF := float64(tempRaw)/float64(100_000)*1.8 + float64(32)
-			return tempF, nil
+			temperature = float64(tempRaw)/float64(100_000)*1.8 + float64(32)
+			return temperature, nil
 		}
 	}
 	return // returns last error
 }
+

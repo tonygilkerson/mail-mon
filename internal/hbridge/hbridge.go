@@ -67,11 +67,12 @@ func (d *Device) ccw(){
 	d.in2.High()
 }
 
-// GetTurnOnAge returns the age since last TurnOn as a hh.mm string
+// GetTurnOnAge returns the age since last TurnOn as a HH.hh string where hh is a fraction of an hour
+// for example, 3.5 is 3 hours and 30 minutes
 func (d *Device) GetTurnOnAge() string {
 
 	duration := time.Since(d.lastTurnOnTime)
-  age := fmt.Sprintf("%0.2fh", duration.Hours())
+  age := fmt.Sprintf("%0.2f", duration.Hours())
 	return age
 
 }

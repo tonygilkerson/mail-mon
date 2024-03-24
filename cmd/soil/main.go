@@ -1,26 +1,24 @@
 package main
 
 import (
-	"log"
 	"fmt"
+	"log"
 	"machine"
-	// "math"
-	"runtime"
-	"time"
 	"math"
-	"strings"
+	"runtime"
 	"strconv"
+	"strings"
+	"time"
 
 	tm1637mod "github.com/tonygilkerson/mbx-iot/hack/driver/tm1637"
-	"github.com/tonygilkerson/mbx-iot/internal/hbridge"
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/hbridge"
 	"github.com/tonygilkerson/mbx-iot/internal/road"
 	"github.com/tonygilkerson/mbx-iot/internal/soil"
 	"github.com/tonygilkerson/mbx-iot/internal/util"
 	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 
 	"tinygo.org/x/drivers/sx127x"
-
 )
 
 func main() {
@@ -47,7 +45,8 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS  = 60
+		// HEARTBEAT_DURATION_SECONDS  = 60
+		HEARTBEAT_DURATION_SECONDS = 10
 	)
 
 	//
@@ -55,13 +54,14 @@ func main() {
 	//
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	dsp.RunLight(led, 10)
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// log.SetFlags(log.LstdFlags | log.Lshortfile)
+	log.SetFlags(log.LstdFlags | log.Llongfile)
 
 	//
 	// Configure L293D
 	//
 	log.Println("Configure L293D Pins")
-	hbridge := hbridge.New(hBridgeEnable,hBridgeIn1,hBridgeIn2)
+	hbridge := hbridge.New(hBridgeEnable, hBridgeIn1, hBridgeIn2)
 
 	//
 	// Configure 4 digit 7-segment display
@@ -86,20 +86,20 @@ func main() {
 
 	log.Println("Setup LORA")
 	radio := road.SetupLora(
-		*machine.SPI0, 
-		loraEn, 
-		loraRst, 
-		loraCs, 
-		loraDio0, 
-		loraDio1, 
-		loraSck, 
-		loraSdo, 
-		loraSdi, 
-		loraRadio, 
-		&txQ, 
-		&rxQ, 
-		10_000, 
-		10_000, 
+		*machine.SPI0,
+		loraEn,
+		loraRst,
+		loraCs,
+		loraDio0,
+		loraDio1,
+		loraSck,
+		loraSdo,
+		loraSdi,
+		loraRadio,
+		&txQ,
+		&rxQ,
+		10_000,
+		10_000,
 		61, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
 		road.TxOnly)
 
@@ -109,64 +109,72 @@ func main() {
 	//
 	// Main loop
 	//
-	ticker := time.NewTicker(time.Second * HEARTBEAT_DURATION_SECONDS)
-	var count int
+	lastSoilReading := time.Now()
+	var marqueeCount int
+	var moistureReading uint16
+	var temperatureReading float64
 
-	for range ticker.C {
+	for {
 
-		log.Printf("------------------SoilMainLoopHeartbeat-------------------- %v", count)
-		count += 1
+		//
+		// Time for a Soil Reading?
+		//
+		if time.Since(lastSoilReading) > (time.Second * HEARTBEAT_DURATION_SECONDS) {
 
-		// Send Heartbeat to Tx queue
-		txQ <- iot.SoilMainLoopHeartbeat
-		dsp.RunLight(led, 2)
+			lastSoilReading = time.Now()
+			log.Printf("------------------SoilMainLoopHeartbeat--------------------")
 
-		// Send Moisture reading  to Tx queue
-		m, err := soil.ReadMoisture()
-		util.DoOrDie(err)
-		txQ <- fmt.Sprintf("%v:%v",iot.SoilMoisture,m)
-		time.Sleep(time.Second)
-		
-		// Send Temperature(F) to Tx queue
-		t, err := soil.ReadTemperature()
-		util.DoOrDie(err)
-		txQ <- fmt.Sprintf("%v:%v",iot.SoilTemperature,t)
-		time.Sleep(time.Second)
+			tm.DisplayNumber(1111) // Just something so I can see a heartbeat happened
 
-		// Temp routine to display the stuff
-		switch math.Mod(float64(count), 3) {
+			// Send Heartbeat to Tx queue
+			txQ <- iot.SoilMainLoopHeartbeat
+			dsp.RunLight(led, 2)
+
+			// Send Moisture reading  to Tx queue
+			moistureReading, err = soil.ReadMoisture()
+			util.DoOrDie(err)
+			txQ <- fmt.Sprintf("%v:%v", iot.SoilMoisture, moistureReading)
+			time.Sleep(time.Second)
+
+			// Send Temperature(F) to Tx queue
+			temperatureReading, err = soil.ReadTemperature()
+			util.DoOrDie(err)
+			txQ <- fmt.Sprintf("%v:%v", iot.SoilTemperature, temperatureReading)
+			time.Sleep(time.Second)
+
+			// hbridge not used yet
+			hbridge.Off()
+
+		}
+
+		//
+		// Marquee Display
+		//
+		switch math.Mod(float64(marqueeCount), 3) {
+
 		case 0:
-			log.Printf("Moisture: %v\n", m)
-			tm.DisplayNumber(int16(m))
+			log.Printf("Moisture: %v\n", moistureReading)
+			tm.DisplayNumber(int16(moistureReading))
 		case 1:
-			log.Printf("Temperature (F): %v\n", t)
-			tm.DisplayNumber(int16(t))
+			log.Printf("Temperature (F): %v\n", temperatureReading)
+			tm.DisplayNumber(int16(temperatureReading))
 		case 2:
 			age := hbridge.GetTurnOnAge()
 			ageParts := strings.Split(age, ".")
 			h, _ := strconv.Atoi(ageParts[0])
 			m, _ := strconv.Atoi(ageParts[1])
-			log.Printf("Age: %v h: %v m: %v\n", age,h,m)
-			tm.DisplayClock(uint8(h),uint8(m),true)
+			log.Printf("Age: %v h: %v m: %v\n", age, h, m)
+			tm.DisplayClock(uint8(h), uint8(m), true)
 		}
-
-		// hbridge not used yet
-		hbridge.Off()
-		
+		marqueeCount += 1
 
 		//
 		// Let someone else have a turn
 		//
 		runtime.Gosched()
+		time.Sleep(time.Second * 2)
+
 	}
-}
 
-
-func sendTemperature(txQ *chan string) {
-
-	// F = ( (ReadTemperature /1000) * 9/5) + 32
-	fahrenheit := ((machine.ReadTemperature() / 1000) * 9 / 5) + 32
-	fmt.Printf("fahrenheit: %v\n", fahrenheit)
-	*txQ <- fmt.Sprintf("%v:%v",iot.SoilTemperature,fahrenheit)
-
+	
 }
