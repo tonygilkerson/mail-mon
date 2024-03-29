@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"machine"
-	"math"
 	"runtime"
 	"strconv"
 	"strings"
@@ -26,6 +25,7 @@ func main() {
 	//
 	// Named PINs
 	//
+	var vibrationPin machine.Pin = machine.GP5
 	var hBridgeEnable machine.Pin = machine.GP6
 	var hBridgeIn1 machine.Pin = machine.GP7
 	var hBridgeIn2 machine.Pin = machine.GP8
@@ -45,8 +45,7 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		// HEARTBEAT_DURATION_SECONDS  = 60
-		HEARTBEAT_DURATION_SECONDS = 10
+		HEARTBEAT_DURATION_SECONDS  = 60
 	)
 
 	//
@@ -56,6 +55,22 @@ func main() {
 	dsp.RunLight(led, 10)
 	// log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.SetFlags(log.LstdFlags | log.Llongfile)
+
+	//
+	// Configure the button
+	//
+	chVibration := make(chan string, 1)
+	// vibrationPin.Configure(machine.PinConfig{Mode: machine.PinInputPulldown})
+	vibrationPin.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	vibrationPin.SetInterrupt(machine.PinRising, func(p machine.Pin) {
+		// Use non-blocking send so if the channel buffer is full,
+		// the value will get dropped instead of crashing the system
+		select {
+		case chVibration <- "rise":
+		default:
+		}
+
+	})
 
 	//
 	// Configure L293D
@@ -110,7 +125,7 @@ func main() {
 	// Main loop
 	//
 	lastSoilReading := time.Now()
-	var marqueeCount int
+	var showMarquee bool = true
 	var moistureReading uint16
 	var temperatureReading float64
 
@@ -123,8 +138,6 @@ func main() {
 
 			lastSoilReading = time.Now()
 			log.Printf("------------------SoilMainLoopHeartbeat--------------------")
-
-			tm.DisplayNumber(1111) // Just something so I can see a heartbeat happened
 
 			// Send Heartbeat to Tx queue
 			txQ <- iot.SoilMainLoopHeartbeat
@@ -148,25 +161,38 @@ func main() {
 		}
 
 		//
+		// Vibration sensor tripped
+		//
+		select {
+		case <-chVibration:
+			showMarquee = true
+		default:
+		}
+
+		//
 		// Marquee Display
 		//
-		switch math.Mod(float64(marqueeCount), 3) {
-
-		case 0:
+		if showMarquee {
+			// moisture
 			log.Printf("Moisture: %v\n", moistureReading)
 			tm.DisplayNumber(int16(moistureReading))
-		case 1:
+			time.Sleep(time.Second * 2)
+			// temperature
 			log.Printf("Temperature (F): %v\n", temperatureReading)
 			tm.DisplayNumber(int16(temperatureReading))
-		case 2:
+			time.Sleep(time.Second * 2)
+			// age
 			age := hbridge.GetTurnOnAge()
 			ageParts := strings.Split(age, ".")
 			h, _ := strconv.Atoi(ageParts[0])
 			m, _ := strconv.Atoi(ageParts[1])
 			log.Printf("Age: %v h: %v m: %v\n", age, h, m)
 			tm.DisplayClock(uint8(h), uint8(m), true)
+			time.Sleep(time.Second * 2)
+
+			tm.ClearDisplay()
+			showMarquee = false
 		}
-		marqueeCount += 1
 
 		//
 		// Let someone else have a turn
@@ -176,5 +202,4 @@ func main() {
 
 	}
 
-	
 }
