@@ -11,6 +11,7 @@ import (
 	"github.com/tonygilkerson/mbx-iot/internal/umsg"
 	"github.com/tonygilkerson/mbx-iot/pkg/iot"
 	"tinygo.org/x/drivers/waveshare-epd/epd4in2"
+	"tinygo.org/x/drivers/tone"
 )
 
 const (
@@ -35,6 +36,7 @@ func main() {
 	var uartOutTx machine.Pin = machine.GP4 // UART1
 	var uartOutRx machine.Pin = machine.GP5 // UART1
 	var neo machine.Pin = machine.GP6       // Neopixel DIN
+	var speakerPin machine.Pin = machine.GP7      // Speaker DIN
 
 	var dc machine.Pin = machine.GP11   // pin15
 	var rst machine.Pin = machine.GP12  // pin16
@@ -44,6 +46,23 @@ func main() {
 	var din machine.Pin = machine.GP19  // pin25 machine.SPI0_SDO_PIN
 
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
+
+	//
+	// run light
+	//
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	dsp.RunLight(led, 10)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	//
+	// PWM for tone alarm
+	//
+	speaker, err := tone.New(machine.PWM3, speakerPin)
+	if err != nil {
+		log.Panicln("failed to configure PWM")
+	}
+	soundSiren(speaker)
+
 
 	//
 	// Neo Pixel
@@ -83,12 +102,7 @@ func main() {
 	uartIn := machine.UART0
 	uartOut := machine.UART1
 
-	//
-	// run light
-	//
-	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	dsp.RunLight(led, 10)
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
 
 	/////////////////////////////////////////////////////////////////////////////
 	// Broker
@@ -185,6 +199,7 @@ func main() {
 			// Get someone's attention
 			log.Println("dsp.epaper.main: Nightrider")
 			dsp.NeoNightrider(neo)
+			soundSiren(speaker)
 			isDirtyCount += 1
 		} else {
 			isDirtyCount = 0
@@ -249,4 +264,18 @@ func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content
 			log.Printf("dsp.epaper.consumeAllStatusFromChToUpdateContent: Not interested in this content: %v", msg)
 		}
 	}
+}
+
+func soundSiren(speaker tone.Speaker) {
+	for i := 0; i < 10; i++ {
+		log.Println("nee")
+		speaker.SetNote(tone.B5)
+		time.Sleep(time.Second / 2)
+
+		log.Println("naw")
+		speaker.SetNote(tone.A5)
+		time.Sleep(time.Second / 2)
+
+	}
+	speaker.Stop()
 }
