@@ -45,7 +45,7 @@ func main() {
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
 
 	const (
-		HEARTBEAT_DURATION_SECONDS  = 60
+		HEARTBEAT_DURATION_SECONDS = 600
 	)
 
 	//
@@ -115,7 +115,7 @@ func main() {
 		&rxQ,
 		10_000,
 		10_000,
-		61, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
+		HEARTBEAT_DURATION_SECONDS+1, // rule of thumb HEARTBEAT_DURATION_SECONDS + 1
 		road.TxOnly)
 
 	// Routine to send and receive
@@ -128,6 +128,8 @@ func main() {
 	var showMarquee bool = true
 	var moistureReading uint16
 	var temperatureReading float64
+
+	var hbridgeToggel bool
 
 	for {
 
@@ -158,6 +160,16 @@ func main() {
 			// hbridge not used yet
 			hbridge.Off()
 
+		}
+
+		// hbridge test, toggle it on and off each time
+		hbridgeToggel = !hbridgeToggel
+		if hbridgeToggel {
+			log.Println("HBRIDGE test [ ON ]")
+			hbridge.TurnOn()
+		} else {
+			log.Println("HBRIDGE test [ OFF ]")
+			hbridge.TurnOff()
 		}
 
 		//
@@ -198,7 +210,7 @@ func main() {
 		// Let someone else have a turn
 		//
 		runtime.Gosched()
-		time.Sleep(time.Second * 2)
+		time.Sleep(time.Second * 3)
 
 	}
 

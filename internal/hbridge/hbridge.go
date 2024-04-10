@@ -42,14 +42,14 @@ func (d *Device) Off(){
 // TurnOn means push solenoid rod or rotate motor CW
 func (d *Device) TurnOn(){
 	d.cw()
-	time.Sleep(time.Duration(time.Second * 2))
+	time.Sleep(time.Duration(time.Second * 1))
 	d.Off()
 }
 
 // TurnOn means pull solenoid rod or rotate motor CCW
 func (d *Device) TurnOff(){
 	d.ccw()
-	time.Sleep(time.Duration(time.Second * 2))
+	time.Sleep(time.Duration(time.Second * 1))
 	d.Off()
 }
 
