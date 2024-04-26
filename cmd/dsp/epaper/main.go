@@ -36,7 +36,7 @@ func main() {
 	var uartOutTx machine.Pin = machine.GP4 // UART1
 	var uartOutRx machine.Pin = machine.GP5 // UART1
 	var neo machine.Pin = machine.GP6       // Neopixel DIN
-	var speakerPin machine.Pin = machine.GP7      // Speaker DIN
+	var buzzerPin machine.Pin = machine.GP7 // Buzzer DIN
 
 	var dc machine.Pin = machine.GP11   // pin15
 	var rst machine.Pin = machine.GP12  // pin16
@@ -57,11 +57,11 @@ func main() {
 	//
 	// PWM for tone alarm
 	//
-	speaker, err := tone.New(machine.PWM3, speakerPin)
+	buzzer, err := tone.New(machine.PWM3, buzzerPin)
 	if err != nil {
 		log.Panicln("failed to configure PWM")
 	}
-	soundSiren(speaker)
+	soundSiren(buzzer)
 
 
 	//
@@ -199,7 +199,7 @@ func main() {
 			// Get someone's attention
 			log.Println("dsp.epaper.main: Nightrider")
 			dsp.NeoNightrider(neo)
-			soundSiren(speaker)
+			soundSiren(buzzer)
 			isDirtyCount += 1
 		} else {
 			isDirtyCount = 0
@@ -266,16 +266,16 @@ func consumeAllStatusFromChToUpdateContent(statusCh chan umsg.StatusMsg, content
 	}
 }
 
-func soundSiren(speaker tone.Speaker) {
+func soundSiren(buzzer tone.Speaker) {
 	for i := 0; i < 10; i++ {
 		log.Println("nee")
-		speaker.SetNote(tone.B5)
+		buzzer.SetNote(tone.B5)
 		time.Sleep(time.Second / 2)
 
 		log.Println("naw")
-		speaker.SetNote(tone.A5)
+		buzzer.SetNote(tone.A5)
 		time.Sleep(time.Second / 2)
 
 	}
-	speaker.Stop()
+	buzzer.Stop()
 }

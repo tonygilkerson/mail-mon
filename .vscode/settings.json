@@ -4,6 +4,6 @@
     "GOARCH": "arm",
     "GOFLAGS": "-tags=cortexm,baremetal,linux,arm,rp2040,rp,pico,tinygo,purego,math_big_pure_go,gc.conservative,scheduler.tasks,serial.usb",
     "GOPRIVATE": "",
-    "GOROOT": "/Users/tgilkerson/Library/Caches/tinygo/goroot-d605a8d6d4ce1430af71a3030eff5b21bf24a35b9b32d556685b3b82f5243a95"
+    "GOROOT": "/Users/tgilkerson/Library/Caches/tinygo/goroot-aafeac2087c4f7d39b7cae322bb35c3791764d1961255d5e47fdcf5db989c07d"
   }
 }
