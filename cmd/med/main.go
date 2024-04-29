@@ -10,9 +10,9 @@ import (
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
 	"tinygo.org/x/drivers/st7789"
+	"tinygo.org/x/drivers/tone"
 	"tinygo.org/x/tinyfont"
 	"tinygo.org/x/tinyfont/freemono"
-	"tinygo.org/x/drivers/tone"
 )
 
 func main() {
@@ -21,13 +21,13 @@ func main() {
 	//
 	var dspKey2 machine.Pin = machine.GP2
 	var dspKey3 machine.Pin = machine.GP3
-	var buzzerPin machine.Pin = machine.GP7 
+	var buzzerPin machine.Pin = machine.GP7
 	var dspDC machine.Pin = machine.GP8
 	var dspCS machine.Pin = machine.GP9
 	var dspSCK machine.Pin = machine.GP10
 	var dspSDO machine.Pin = machine.GP11
 	var dspReset machine.Pin = machine.GP12
-	var dspLite machine.Pin = machine.GP13
+	var dspBackLight machine.Pin = machine.GP13
 	var dspKey0 machine.Pin = machine.GP15
 	var dspKey1 machine.Pin = machine.GP17
 	var dspSDI machine.Pin = machine.GP28
@@ -109,7 +109,7 @@ func main() {
 		dspReset, // TFT_RESET
 		dspDC,    // TFT_DC
 		dspCS,    // TFT_CS
-		dspLite)  // TFT_LITE
+		dspBackLight)  // TFT_LITE
 
 	display.Configure(st7789.Config{
 		// With the display in portrait and the usb socket on the left and in the back
@@ -140,14 +140,25 @@ func main() {
 
 	lastTakenMedsAt := time.Now()
 	screenOnAt := time.Now()
+	screenOn := true
 
+	/////////////////////////////////////////////////////////////////////////////
+	// The main loop
+	/////////////////////////////////////////////////////////////////////////////
 	for {
 
 		select {
 		case key := <-chKeyPress:
 
 			log.Println("key channel message %s", key)
-			
+
+			if !screenOn {
+				display.Sleep(false)
+				dspBackLight.High()
+				screenOn = false
+				screenOnAt = time.Now()
+				break
+			}
 			switch key {
 
 			case "key0":
@@ -173,7 +184,6 @@ func main() {
 		age := fmt.Sprintf("%1.2fh", lastTakenMedsDuration.Hours())
 		ageString := fmt.Sprintf("Last taken:\n%s hours ago", age)
 
-
 		cls(&display)
 		// tinyfont.WriteLine(&display,&freemono.Regular12pt7b,10,20,"123456789-123456789-x",red)
 		tinyfont.WriteLine(&display, &freemono.Regular12pt7b, 10, 20, ageString, red)
@@ -183,13 +193,23 @@ func main() {
 		// soundSiren(buzzer)
 
 		screenOnDuration := time.Since(screenOnAt)
-		if screenOnDuration.Minutes() > 1 {
+		if screenOn && screenOnDuration.Minutes() > 1 {
 			//turn off the screen
+			// GP12 - LCD_RST (low active)
+			// GP13 - LCD_BL
+			log.Println("Turn off screen")
+			display.Sleep(true)
+			dspBackLight.Low()
+			screenOn = false
 		}
 
 	}
 
 }
+
+/////////////////////////////////////////////////////////////////////////////
+// fn
+/////////////////////////////////////////////////////////////////////////////
 
 func paintScreen(c color.RGBA, d *st7789.Device, s int16) {
 	var x, y int16
@@ -207,7 +227,7 @@ func cls(d *st7789.Device) {
 }
 
 func soundSiren(buzzer tone.Speaker) {
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 1; i++ {
 		log.Println("nee")
 		buzzer.SetNote(tone.B5)
 		time.Sleep(time.Second / 2)
