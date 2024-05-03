@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"log"
 	"machine"
+	"runtime"
 	"time"
 
 	"image/color"
 
 	"github.com/tonygilkerson/mbx-iot/internal/dsp"
+	"github.com/tonygilkerson/mbx-iot/internal/med"
 	"tinygo.org/x/drivers/st7789"
 	"tinygo.org/x/drivers/tone"
 	"tinygo.org/x/tinyfont"
@@ -19,8 +21,8 @@ func main() {
 	//
 	// Named PINs
 	//
-	var dspKey2 machine.Pin = machine.GP2
-	var dspKey3 machine.Pin = machine.GP3
+	var tookMedsButton machine.Pin = machine.GP2
+	var sub1HrButton machine.Pin = machine.GP3
 	var buzzerPin machine.Pin = machine.GP7
 	var dspDC machine.Pin = machine.GP8
 	var dspCS machine.Pin = machine.GP9
@@ -28,8 +30,8 @@ func main() {
 	var dspSDO machine.Pin = machine.GP11
 	var dspReset machine.Pin = machine.GP12
 	var dspBackLight machine.Pin = machine.GP13
-	var dspKey0 machine.Pin = machine.GP15
-	var dspKey1 machine.Pin = machine.GP17
+	var add1HrButton machine.Pin = machine.GP15
+	var add30MButton machine.Pin = machine.GP17
 	var dspSDI machine.Pin = machine.GP28
 
 	var led machine.Pin = machine.GPIO25 // GP25 machine.LED
@@ -46,52 +48,14 @@ func main() {
 	//
 	buzzer, err := tone.New(machine.PWM3, buzzerPin)
 	if err != nil {
-		log.Panicln("failed to configure PWM")
+		log.Panicln("failed to configure buzzer")
 	}
-	soundSiren(buzzer)
 
 	//
-	// Display Buttons
+	// Med Device
 	//
-	chKeyPress := make(chan string, 1)
-	dspKey0.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	dspKey1.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	dspKey2.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-	dspKey3.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
-
-	dspKey0.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
-		fmt.Println("key0 - RADriverCmd")
-		// Use non-blocking send so if the channel buffer is full,
-		// the value will get dropped instead of crashing the system
-		select {
-		case chKeyPress <- "key0":
-		default:
-		}
-	})
-
-	dspKey1.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
-		fmt.Println("key1 interrupt")
-		select {
-		case chKeyPress <- "key1":
-		default:
-		}
-	})
-
-	dspKey2.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
-		fmt.Println("key2 interrupt")
-		select {
-		case chKeyPress <- "key2":
-		default:
-		}
-	})
-
-	dspKey3.SetInterrupt(machine.PinFalling, func(p machine.Pin) {
-		fmt.Println("key3 interrupt")
-		select {
-		case chKeyPress <- "key3":
-		default:
-		}
-	})
+	medTracker := med.New(add1HrButton, sub1HrButton, add30MButton, tookMedsButton, buzzer)
+	go medTracker.KeyPressChannelConsumer()
 
 	//
 	// Display
@@ -106,10 +70,10 @@ func main() {
 	})
 
 	display := st7789.New(machine.SPI1,
-		dspReset, // TFT_RESET
-		dspDC,    // TFT_DC
-		dspCS,    // TFT_CS
-		dspBackLight)  // TFT_LITE
+		dspReset,     // TFT_RESET
+		dspDC,        // TFT_DC
+		dspCS,        // TFT_CS
+		dspBackLight) // TFT_LITE
 
 	display.Configure(st7789.Config{
 		// With the display in portrait and the usb socket on the left and in the back
@@ -138,49 +102,33 @@ func main() {
 	// blue := color.RGBA{0, 0, 255, 255}
 	// green := color.RGBA{0, 255, 0, 255}
 
-	lastTakenMedsAt := time.Now()
-	screenOnAt := time.Now()
-	screenOn := true
+	// screenOnAt := time.Now()
+	// screenOn := true
 
 	/////////////////////////////////////////////////////////////////////////////
 	// The main loop
 	/////////////////////////////////////////////////////////////////////////////
 	for {
 
-		select {
-		case key := <-chKeyPress:
-
-			log.Println("key channel message %s", key)
-
-			if !screenOn {
-				display.Sleep(false)
-				dspBackLight.High()
-				screenOn = false
-				screenOnAt = time.Now()
-				break
-			}
-			switch key {
-
-			case "key0":
-				log.Println("Key0 - Add 1hr")
-				lastTakenMedsAt = lastTakenMedsAt.Add(time.Hour)
-			case "key1":
-				log.Println("Key1 - Add 30min")
-				lastTakenMedsAt = lastTakenMedsAt.Add(time.Minute * 30)
-			case "key2":
-				log.Println("Key2 - Do reset/took meds")
-				lastTakenMedsAt = time.Now()
-			case "key3":
-				log.Println("Key3 pressed - Subtract 1hr")
-				lastTakenMedsAt = lastTakenMedsAt.Add(time.Hour * -1)
-			}
-
-		default:
-			time.Sleep(time.Millisecond * 50)
-			log.Println(".")
+		if medTracker.CheckIfKeyPressed() {
+			// Screen on
+			display.Sleep(false)
+			dspBackLight.High()
+		} else {
+			// Screen off
+			display.Sleep(true)
+			dspBackLight.Low()
 		}
 
-		lastTakenMedsDuration := time.Since(lastTakenMedsAt)
+		// if !screenOn {
+		// 	display.Sleep(false)
+		// 	dspBackLight.High()
+		// 	screenOn = false
+		// 	screenOnAt = time.Now()
+		// 	break
+		// }
+
+		lastTakenMedsDuration := time.Since(medTracker.GetLastTakenMedsAt())
 		age := fmt.Sprintf("%1.2fh", lastTakenMedsDuration.Hours())
 		ageString := fmt.Sprintf("Last taken:\n%s hours ago", age)
 
@@ -192,17 +140,20 @@ func main() {
 		//test
 		// soundSiren(buzzer)
 
-		screenOnDuration := time.Since(screenOnAt)
-		if screenOn && screenOnDuration.Minutes() > 1 {
-			//turn off the screen
-			// GP12 - LCD_RST (low active)
-			// GP13 - LCD_BL
-			log.Println("Turn off screen")
-			display.Sleep(true)
-			dspBackLight.Low()
-			screenOn = false
-		}
+		// screenOnDuration := time.Since(screenOnAt)
+		// if screenOn && screenOnDuration.Minutes() > 1 {
+		// 	//turn off the screen
+		// 	// GP12 - LCD_RST (low active)
+		// 	// GP13 - LCD_BL
+		// 	log.Println("Turn off screen")
+		// 	display.Sleep(true)
+		// 	dspBackLight.Low()
+		// 	screenOn = false
+		// }
 
+		runtime.Gosched()
+		time.Sleep(time.Millisecond * 1000)
+		log.Println(".")
 	}
 
 }
